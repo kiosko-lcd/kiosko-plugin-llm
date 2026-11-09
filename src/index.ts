@@ -23,7 +23,7 @@ export const servers = defineSource({
       t.object({
         name: t.string({ placeholder: 'ollama', label: { en: 'Name', es: 'Nombre' } }),
         kind: t.enum(KINDS, { label: { en: 'Server', es: 'Servidor' }, labels: { ollama: 'Ollama', llamacpp: 'llama.cpp server', vllm: 'vLLM', openai: { en: 'OpenAI-compatible (LM Studio…)', es: 'Compatible con OpenAI (LM Studio…)' }, tgi: 'TGI' } }),
-        url: t.string({ format: 'url', placeholder: 'http://192.168.1.40:11434', label: { en: 'Address', es: 'Dirección' } }),
+        url: t.string({ format: 'url', risk: 'network', placeholder: 'http://192.168.1.40:11434', label: { en: 'Address', es: 'Dirección' } }),
         token: t.string({ secret: true, label: { en: 'Bearer token', es: 'Token Bearer' }, help: { en: 'Only if the server asks for an API key.', es: 'Solo si el servidor pide una clave de API.' } }),
       }),
       { default: DEFAULT_ENDPOINTS, max: 12, label: { en: 'Servers', es: 'Servidores' } },
