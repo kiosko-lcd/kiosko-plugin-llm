@@ -83,6 +83,7 @@ export interface ReadOptions {
   fetch?: Fetch;
   now?: number;
   state?: PollState;
+  /** How long one server may take, all its requests together. Default 2 s. */
   timeoutMs?: number;
   signal?: AbortSignal;
 }
@@ -243,9 +244,11 @@ export async function readServer(ep: Endpoint, o: Required<Omit<ReadOptions, 'si
   const base = baseUrl(ep.url);
   const headers: Record<string, string> = { Accept: 'application/json, text/plain' };
   if (ep.token?.trim()) headers.Authorization = `Bearer ${ep.token.trim()}`;
+  // One deadline for all the requests of this server: a slow one is reported down, the others still count.
+  const deadline = AbortSignal.timeout(o.timeoutMs);
+  const signal = o.signal ? AbortSignal.any([o.signal, deadline]) : deadline;
   const get: Get = async (path) => {
-    const t = AbortSignal.timeout(o.timeoutMs);
-    const res = await o.fetch(`${base}${path}`, { headers, signal: o.signal ? AbortSignal.any([o.signal, t]) : t });
+    const res = await o.fetch(`${base}${path}`, { headers, signal });
     if (!res.ok) throw new HttpError(res.status, path);
     return res.text();
   };

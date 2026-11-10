@@ -33,8 +33,9 @@ Uses: `llm/servers`.
 
 | Option | Type | Default | |
 |---|---|---|---|
-| `minutes` | number | `10` | Sparkline span |
+| `historyMs` | duration (ms) | `600000` | Sparkline span. Up to 30 min, what the source keeps. |
 | `onlyWithRate` | boolean | `true` | Only servers that report tokens/s. Ollama does not expose tokens/s. |
+| `servers` | list | `[]` | Servers. Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama). |
 
 ### Loaded models — `llm/models`
 
@@ -47,10 +48,13 @@ Uses: `llm/servers`.
 | Option | Type | Default | |
 |---|---|---|---|
 | `showServer` | boolean | `true` | Show the server name |
+| `servers` | list | `[]` | Servers. Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama). |
+| `rows` | number | `0` | Rows. 0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in "+N more". |
+| `layout` | `auto` \| `one-line` \| `detailed` | `"auto"` | Row layout. Automatic: the widget picks by the tile's shape. |
 
 ### Inference queue — `llm/queue`
 
-Requests running and waiting on each server, with its KV cache usage. Turns red when too many wait or the cache is nearly full.
+Requests running and waiting on each server, with its KV cache usage. Turns red, and keeps the tile, when too many wait or the cache is nearly full.
 
 ![Inference queue](docs/queue.png)
 
@@ -58,10 +62,11 @@ Uses: `llm/servers`.
 
 | Option | Type | Default | |
 |---|---|---|---|
-| `maxWaiting` | number | `2` | Alert when more requests wait than |
-| `maxKv` | number | `90` | Alert when KV cache is above |
-| `takeOver` | boolean | `true` | Take the cell over on alert. Marks the widget urgent while a server is over a threshold. |
+| `waitingAlert` | number | `3` | Red when this many requests wait |
+| `kvAlert` | number | `90` | Red when the KV cache reaches |
 | `onlyWithQueue` | boolean | `true` | Only servers that report a queue |
+| `servers` | list | `[]` | Servers. Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama). |
+| `rows` | number | `0` | Rows. 0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in "+N more". |
 
 ### LLM servers — `llm/status`
 
@@ -71,7 +76,10 @@ One line per server for small panels: up or down, the loaded model and its token
 
 Uses: `llm/servers`.
 
-*No options.*
+| Option | Type | Default | |
+|---|---|---|---|
+| `servers` | list | `[]` | Servers. Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama). |
+| `rows` | number | `0` | Rows. 0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in "+N more". |
 
 ## Data sources
 
@@ -82,7 +90,6 @@ Local inference servers (Ollama, llama.cpp, vLLM, TGI, OpenAI-compatible): reach
 | Option | Type | Default | |
 |---|---|---|---|
 | `endpoints` | list | … | Servers |
-| `timeoutMs` | duration (ms) | `2000` | Timeout per request |
 
 ## Development
 

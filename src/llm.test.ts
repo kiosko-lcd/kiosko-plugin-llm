@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { bucketDelta, buckets, counterRate, parseProm, quantile, sum } from './prom.ts';
 import { baseUrl, busy, countdown, createState, demoData, fmtBytes, fmtCtx, readServers, vllmFromMetrics, type Fetch } from './llm.ts';
-import plugin, { congested } from './index.ts';
+import plugin, { congested, modelRows, queueServers, rateServers, serverBudget, serversOf } from './index.ts';
 
 const fx = (f: string) => readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8');
 
@@ -160,9 +160,32 @@ test('formatting and thresholds', () => {
   assert.equal(fmtBytes(1.5 * 1024 ** 3), '1.5 GB');
   assert.equal(fmtCtx(131072), '128k');
   const s = demoData(0).servers[1]!;
-  assert.equal(congested(s, { maxWaiting: 2, maxKv: 90 }), false);
-  assert.equal(congested({ ...s, waiting: 5 }, { maxWaiting: 2, maxKv: 90 }), true);
-  assert.equal(congested({ ...s, kvUsage: 0.95 }, { maxWaiting: 2, maxKv: 90 }), true);
+  const th = { waitingAlert: 3, kvAlert: 90 };
+  assert.equal(congested(s, th), false);
+  assert.equal(congested({ ...s, waiting: 2 }, th), false);
+  assert.equal(congested({ ...s, waiting: 3 }, th), true, 'red from waitingAlert on');
+  assert.equal(congested({ ...s, kvUsage: 0.9 }, th), true, 'red from kvAlert on');
+  assert.equal(congested({ ...s, reachable: false, waiting: 9 }, th), false);
+});
+
+test('servers filter: by name or address, with exclusions; per-widget lists', () => {
+  const d = demoData(0);
+  assert.deepEqual(serversOf(d, []).map((s) => s.name), ['ollama', 'vllm', 'llama.cpp', 'lm-studio']);
+  assert.deepEqual(serversOf(d, ['vllm', 'llama*']).map((s) => s.name), ['vllm', 'llama.cpp']);
+  assert.deepEqual(serversOf(d, ['!ollama', '!lm-*']).map((s) => s.name), ['vllm', 'llama.cpp']);
+  assert.deepEqual(serversOf(d, '*192.168.1.41*').map((s) => s.name), ['vllm'], 'by address');
+  assert.deepEqual(rateServers(d, { servers: [], onlyWithRate: true }).map((s) => s.name), ['vllm', 'llama.cpp', 'lm-studio'], 'Ollama gives no rate; down servers stay');
+  assert.deepEqual(queueServers(d, { servers: ['!lm-studio'], onlyWithQueue: true }).map((s) => s.name), ['vllm', 'llama.cpp']);
+  assert.deepEqual(modelRows(d, ['ollama']).map((r) => r.m.name), ['qwen2.5-coder:32b', 'nomic-embed-text:latest']);
+});
+
+test('source: Kiosko owns the timeout; each server gets most of it', () => {
+  const src = plugin.sources![0]!;
+  const props = (src.options as { props: Record<string, unknown> }).props;
+  assert.equal('timeoutMs' in props, false, 'no option of its own');
+  assert.equal(src.timeoutMs, 2500);
+  assert.equal(serverBudget(2500), 2000);
+  assert.equal(serverBudget(100), 200);
 });
 
 test('plugin: every widget renders its demo and with no servers; idle and urgent', async () => {
@@ -194,9 +217,44 @@ test('plugin: every widget renders its demo and with no servers; idle and urgent
     assert.equal(w.idle!(st({ 'llm/servers': quiet })), true, `${w.id}: idle when nothing generates`);
   }
   const q = plugin.widgets!.find((w) => w.id === 'queue')!;
-  const qo = { maxWaiting: 2, maxKv: 90, takeOver: true, onlyWithQueue: true };
+  const qo = { waitingAlert: 3, kvAlert: 90, onlyWithQueue: true, servers: [], rows: 0 };
   const hot = { at: now, servers: [{ ...demoData(now).servers[1]!, waiting: 7 }] };
-  assert.equal(q.urgent!({ options: qo, data: undefined, sources: { 'llm/servers': hot }, now, working: true } as never), true);
-  assert.equal(q.urgent!({ options: { ...qo, takeOver: false }, data: undefined, sources: { 'llm/servers': hot }, now, working: true } as never), false);
-  assert.equal(q.urgent!({ options: qo, data: undefined, sources: demoData(now) ? { 'llm/servers': demoData(now) } : {}, now, working: true } as never), false);
+  const qs = (options: object, sources: Record<string, unknown>) => ({ options, data: undefined, sources, now, working: true }) as never;
+  assert.equal(q.urgent!(qs(qo, { 'llm/servers': hot })), true);
+  assert.equal(q.urgent!(qs({ ...qo, servers: ['!vllm'] }, { 'llm/servers': hot })), false, 'only its own servers count');
+  assert.equal(q.urgent!(qs(qo, { 'llm/servers': demoData(now) })), false);
+  assert.equal('takeOver' in (q.options as { props: object }).props, false, 'takeOver is the instance switch');
+  assert.notEqual(q.takeOver, false, 'keeps the tile by default');
+});
+
+test('lists: empty, rows and "+N more"', async () => {
+  const { createCanvas } = await import('@napi-rs/canvas');
+  const { THEMES, createBaseContext } = await import('@kiosko/sdk');
+  const kit = await import('@loksly/lcd-canvas-kit');
+  const now = Date.parse('2026-11-09T10:00:00Z');
+  const theme = THEMES[0]!;
+  const byId = (id: string) => plugin.widgets!.find((w) => w.id === id)!;
+  const defaults = (id: string) => Object.fromEntries(Object.entries((byId(id).options as { props: Record<string, { default: unknown }> }).props).map(([k, f]) => [k, f.default]));
+  const paint = (id: string, options: Record<string, unknown>, sources: Record<string, unknown>, h = 100) => {
+    const texts: string[] = [];
+    const spy = { ...kit, drawTracked: (g: never, text: string, ...rest: never[]) => (texts.push(text), (kit.drawTracked as (...a: unknown[]) => number)(g, text, ...rest)) };
+    const g = createCanvas(400, h + 8).getContext('2d');
+    byId(id).render(g as never, { ...createBaseContext({ now, locale: 'en' }), options: { ...defaults(id), ...options }, data: undefined, sources, working: true, box: { x: 4, y: 4, w: 392, h }, theme, fonts: theme.fonts, kit: spy, canvas: { createCanvas }, preview: true } as never);
+    return texts;
+  };
+  const demoSrc = { 'llm/servers': demoData(now) };
+  // Four models, two rows asked for: two rows and "+2 more" under them.
+  assert.ok(paint('models', { rows: 2 }, demoSrc).includes('+2 more'));
+  assert.ok(!paint('models', { rows: 0 }, demoSrc, 400).some((x) => x.startsWith('+')), 'all fit');
+  assert.ok(paint('models', { layout: 'one-line' }, demoSrc, 60).includes('+2 more'), 'one-line rows of 18–44 px');
+  assert.ok(paint('status', { rows: 4 }, demoSrc, 60).some((x) => /^\+\d+ more$/.test(x)), 'status no longer cuts silently');
+  assert.ok(paint('queue', {}, { 'llm/servers': { at: now, servers: [1, 2, 3, 4].map((i) => ({ ...demoData(now).servers[1]!, name: `v${i}` })) } }, 80).includes('+2 more'), 'queue no longer cuts silently');
+  assert.ok(paint('models', { servers: ['nope'] }, demoSrc).includes('No server matches the filter'));
+  const st = (id: string, sources: Record<string, unknown>, options: object = {}) => byId(id).empty!({ options: { ...defaults(id), ...options }, data: undefined, sources, now, working: true } as never);
+  for (const id of ['throughput', 'models', 'queue', 'status']) {
+    assert.equal(st(id, demoSrc), false, id);
+    assert.equal(st(id, { 'llm/servers': { at: now, servers: [] } }), true, id);
+    assert.equal(st(id, {}), false, `${id}: unknown until the first read`);
+  }
+  assert.equal(st('models', demoSrc, { servers: ['lm-studio'] }), true, 'a server with no models');
 });
