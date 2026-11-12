@@ -366,7 +366,7 @@ export const status = defineWidget({
 export default definePlugin({
   id: 'llm',
   name: { en: 'Local LLMs', es: 'LLM locales' },
-  version: '0.1.0',
+  version: '0.2.0',
   description: { en: 'Tokens per second, loaded models and request queues of your local LLM servers.', es: 'Tokens por segundo, modelos cargados y colas de peticiones de tus servidores de LLM locales.' },
   author: 'Kiosko',
   license: 'MIT',
