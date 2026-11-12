@@ -1,6 +1,6 @@
 {
   "name": "kiosko-plugin-llm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tokens per second, loaded models and request queues of your local LLM servers.",
   "type": "module",
   "license": "MIT",
@@ -45,8 +45,8 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@kiosko/sdk": "^0.1.0",
-    "@loksly/lcd-canvas-kit": "^0.1.0",
+    "@kiosko/sdk": "^0.2.0",
+    "@loksly/lcd-canvas-kit": "^0.2.0",
     "@napi-rs/canvas": "^1.0.10",
     "@types/node": "^24.0.0",
     "esbuild": "^0.25.0",
