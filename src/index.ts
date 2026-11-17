@@ -239,6 +239,11 @@ export function congested(s: ServerStatus, o: { waitingAlert: number; kvAlert: n
   return s.reachable && ((s.waiting ?? 0) >= o.waitingAlert || (s.kvUsage ?? 0) * 100 >= o.kvAlert);
 }
 
+/** Amber from `warn`, red from `alert`, quiet below. */
+export function thresholdLevel(value: number, warn: number, alert: number): 'ok' | 'warn' | 'alert' {
+  return value >= alert ? 'alert' : value >= warn ? 'warn' : 'ok';
+}
+
 /** Servers of the queue widget: those its filter lets through and, with `onlyWithQueue`, that report a queue. */
 export function queueServers(data: LlmData, o: { servers: Filter; onlyWithQueue: boolean }): ServerStatus[] {
   return serversOf(data, o.servers).filter((s) => !o.onlyWithQueue || !s.reachable || s.running !== undefined || s.kvUsage !== undefined);
@@ -257,7 +262,9 @@ export const queue = defineWidget({
   size: { min: { w: 220, h: 80 }, preferred: { w: 600, h: 200 } },
   sources: [SOURCE],
   options: t.object({
+    waitingWarn: t.integer({ default: 1, min: 1, max: 100, label: { en: 'Amber when this many requests wait', es: 'Ámbar cuando esperan estas peticiones' } }),
     waitingAlert: t.integer({ default: 3, min: 1, max: 100, label: { en: 'Red when this many requests wait', es: 'Rojo cuando esperan estas peticiones' } }),
+    kvWarn: t.integer({ default: 75, min: 10, max: 100, unit: '%', slider: true, label: { en: 'Amber when the KV cache reaches', es: 'Ámbar cuando la caché KV llega a' } }),
     kvAlert: t.integer({ default: 90, min: 10, max: 100, unit: '%', slider: true, label: { en: 'Red when the KV cache reaches', es: 'Rojo cuando la caché KV llega a' } }),
     onlyWithQueue: t.boolean({ default: true, label: { en: 'Only servers that report a queue', es: 'Solo servidores que dan cola' } }),
     servers: serversOption(),
@@ -293,19 +300,27 @@ export const queue = defineWidget({
         kit.drawTracked(g, kit.truncate(g, s.name, box.w - dw - ts, name), box.x, top + ts, { ...name, color: colors.inkDim });
         return;
       }
-      const counts = `${s.running ?? '–'} ${tr({ en: 'run', es: 'en curso' })} · ${s.waiting ?? '–'} ${tr({ en: 'wait', es: 'esperan' })}`;
-      const co = { size: ts, family: fonts.mono, color: (s.waiting ?? 0) >= options.waitingAlert ? colors.alert : on ? colors.info : colors.inkFaint };
-      const cw = kit.drawTracked(g, counts, box.x + box.w, top + ts, { ...co, align: 'right' });
+      const full = `${s.running ?? '–'} ${tr({ en: 'run', es: 'en curso' })} · ${s.waiting ?? '–'} ${tr({ en: 'wait', es: 'esperan' })}`;
+      // At most two thirds of the row: a bit smaller first, then the numbers alone ("2 · 1"), never out of the box.
+      const room = box.w * 0.66;
+      const wait = thresholdLevel(s.waiting ?? 0, options.waitingWarn, options.waitingAlert);
+      const base = { family: fonts.mono, color: wait === 'alert' ? colors.alert : wait === 'warn' ? colors.warn : on ? colors.info : colors.inkFaint };
+      const fitted = kit.fitSize(g, full, room, { ...base, size: ts }, Math.max(9, Math.round(ts * 0.75)));
+      const counts = kit.measureTracked(g, full, { ...base, size: fitted }) <= room ? full : `${s.running ?? '–'} · ${s.waiting ?? '–'}`;
+      const co = { ...base, size: counts === full ? fitted : ts };
+      const cw = kit.drawTracked(g, kit.truncate(g, counts, box.w, co), box.x + box.w, top + ts, { ...co, align: 'right' });
       kit.drawTracked(g, kit.truncate(g, s.name, box.w - cw - ts, name), box.x, top + ts, name);
       if (s.kvUsage !== undefined) {
-        const kvHot = s.kvUsage * 100 >= options.kvAlert;
+        const kv = thresholdLevel(s.kvUsage * 100, options.kvWarn, options.kvAlert);
+        const kvHot = kv === 'alert';
+        const kvColor = kvHot ? colors.alert : kv === 'warn' ? colors.warn : null;
         const by = top + ts * 1.45, bh = Math.max(4, rowH * 0.22);
-        const lab = { size: Math.round(bh * 1.1), family: fonts.mono, color: kvHot ? colors.alert : colors.inkDim };
+        const lab = { size: Math.round(bh * 1.1), family: fonts.mono, color: kvColor ?? colors.inkDim };
         const lw = kit.drawTracked(g, `KV ${Math.round(s.kvUsage * 100)}%`, box.x + box.w, by + bh, { ...lab, align: 'right' });
         const bw = box.w - lw - ts * 0.5;
         g.fillStyle = colors.surfaceEdge;
         g.fillRect(box.x, by, bw, bh);
-        g.fillStyle = kvHot ? colors.alert : on ? colors.info : colors.inkFaint;
+        g.fillStyle = kvColor ?? (on ? colors.info : colors.inkFaint);
         g.fillRect(box.x, by, bw * Math.min(1, Math.max(0, s.kvUsage)), bh);
       }
     });
@@ -366,7 +381,9 @@ export const status = defineWidget({
 export default definePlugin({
   id: 'llm',
   name: { en: 'Local LLMs', es: 'LLM locales' },
-  version: '0.2.0',
+  version: '0.2.1',
+  sdk: '^0.2.0',
+  permissions: { network: ['user'] },
   description: { en: 'Tokens per second, loaded models and request queues of your local LLM servers.', es: 'Tokens por segundo, modelos cargados y colas de peticiones de tus servidores de LLM locales.' },
   author: 'Kiosko',
   license: 'MIT',

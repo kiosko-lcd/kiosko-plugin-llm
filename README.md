@@ -21,6 +21,10 @@ npm install --prefix ~/.config/kiosko/plugins kiosko-plugin-llm
 - One or more inference servers reachable over HTTP: Ollama, llama.cpp `llama-server` (start it with `--metrics` for tokens/s, queue and KV cache; `/slots` for per-slot state), vLLM, TGI or any OpenAI-compatible server (LM Studio…; only its model list and whether it answers).
 - Ollama exposes no tokens/s, queue or KV-cache endpoint: for Ollama servers the widgets show the loaded models, their size, VRAM, context and keep-alive countdown, and leave tokens/s blank.
 
+## What it does on your machine
+
+- **Internet**: contacts the ones you set in its options.
+
 ## Widgets
 
 ### Tokens per second — `llm/throughput`
@@ -62,7 +66,9 @@ Uses: `llm/servers`.
 
 | Option | Type | Default | |
 |---|---|---|---|
+| `waitingWarn` | number | `1` | Amber when this many requests wait |
 | `waitingAlert` | number | `3` | Red when this many requests wait |
+| `kvWarn` | number | `75` | Amber when the KV cache reaches |
 | `kvAlert` | number | `90` | Red when the KV cache reaches |
 | `onlyWithQueue` | boolean | `true` | Only servers that report a queue |
 | `servers` | list | `[]` | Servers. Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama). |

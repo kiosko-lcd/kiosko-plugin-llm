@@ -1,0 +1,693 @@
+{
+  "manifest": 1,
+  "id": "llm",
+  "package": "kiosko-plugin-llm",
+  "name": {
+    "en": "Local LLMs",
+    "es": "LLM locales"
+  },
+  "version": "0.2.1",
+  "description": {
+    "en": "Tokens per second, loaded models and request queues of your local LLM servers.",
+    "es": "Tokens por segundo, modelos cargados y colas de peticiones de tus servidores de LLM locales."
+  },
+  "author": "Kiosko",
+  "license": "MIT",
+  "homepage": "https://github.com/kiosko-lcd/kiosko-plugin-llm#readme",
+  "repository": "https://github.com/kiosko-lcd/kiosko-plugin-llm.git",
+  "icon": "cpu",
+  "sdk": "^0.2.0",
+  "platforms": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
+  "languages": [
+    "en",
+    "es"
+  ],
+  "categories": [
+    "dev"
+  ],
+  "tags": [
+    "llm",
+    "ollama",
+    "vllm",
+    "llama.cpp",
+    "ai",
+    "vram"
+  ],
+  "permissions": {
+    "network": [
+      "user"
+    ]
+  },
+  "riskyOptions": [
+    {
+      "path": "llm/servers: endpoints[].url",
+      "risk": [
+        "network"
+      ],
+      "secret": false
+    },
+    {
+      "path": "llm/servers: endpoints[].token",
+      "risk": [],
+      "secret": true
+    }
+  ],
+  "requires": [],
+  "optional": [],
+  "widgets": [
+    {
+      "type": "llm/throughput",
+      "name": {
+        "en": "Tokens per second",
+        "es": "Tokens por segundo"
+      },
+      "description": {
+        "en": "Generation tokens per second of each server in big figures, prompt processing in small, and a sparkline of the last minutes. Dim while idle.",
+        "es": "Tokens por segundo generados por cada servidor en grande, el procesado del prompt en pequeño y una gráfica de los últimos minutos. Apagado en reposo."
+      },
+      "icon": "activity",
+      "category": "dev",
+      "tags": [
+        "llm",
+        "ollama",
+        "vllm",
+        "llama.cpp",
+        "ai"
+      ],
+      "size": {
+        "min": {
+          "w": 160,
+          "h": 90
+        },
+        "preferred": {
+          "w": 720,
+          "h": 220
+        }
+      },
+      "chrome": "card",
+      "sources": [
+        "llm/servers"
+      ],
+      "options": {
+        "default": {
+          "historyMs": 600000,
+          "onlyWithRate": true,
+          "servers": []
+        },
+        "x-ui": {},
+        "type": "object",
+        "properties": {
+          "historyMs": {
+            "title": "Sparkline span",
+            "description": "Up to 30 min, what the source keeps.",
+            "default": 600000,
+            "x-ui": {
+              "label": {
+                "en": "Sparkline span",
+                "es": "Duración de la gráfica"
+              },
+              "help": {
+                "en": "Up to 30 min, what the source keeps.",
+                "es": "Hasta 30 min, lo que guarda la fuente."
+              },
+              "unit": "ms"
+            },
+            "type": "integer",
+            "minimum": 60000,
+            "maximum": 1800000
+          },
+          "onlyWithRate": {
+            "title": "Only servers that report tokens/s",
+            "description": "Ollama does not expose tokens/s.",
+            "default": true,
+            "x-ui": {
+              "label": {
+                "en": "Only servers that report tokens/s",
+                "es": "Solo servidores que dan tokens/s"
+              },
+              "help": {
+                "en": "Ollama does not expose tokens/s.",
+                "es": "Ollama no expone tokens/s."
+              }
+            },
+            "type": "boolean"
+          },
+          "servers": {
+            "title": "Servers",
+            "description": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
+            "default": [],
+            "x-ui": {
+              "label": {
+                "en": "Servers",
+                "es": "Servidores"
+              },
+              "help": {
+                "en": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
+                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama)."
+              },
+              "widget": "filter"
+            },
+            "type": "array",
+            "items": {
+              "default": "",
+              "x-ui": {
+                "placeholder": "name, group/*, !old-*"
+              },
+              "type": "string"
+            },
+            "x-filter": true
+          }
+        }
+      },
+      "screenshot": "docs/throughput.png",
+      "animated": false,
+      "urgent": false
+    },
+    {
+      "type": "llm/models",
+      "name": {
+        "en": "Loaded models",
+        "es": "Modelos cargados"
+      },
+      "description": {
+        "en": "The models in memory across your servers: size and VRAM, context length and, for Ollama, how long until keep-alive unloads them.",
+        "es": "Los modelos en memoria en tus servidores: tamaño y VRAM, longitud de contexto y, en Ollama, cuánto falta para que el keep-alive los descargue."
+      },
+      "icon": "cpu",
+      "category": "dev",
+      "tags": [
+        "llm",
+        "ollama",
+        "vram",
+        "ai"
+      ],
+      "size": {
+        "min": {
+          "w": 220,
+          "h": 80
+        },
+        "preferred": {
+          "w": 600,
+          "h": 220
+        }
+      },
+      "chrome": "card",
+      "sources": [
+        "llm/servers"
+      ],
+      "options": {
+        "default": {
+          "showServer": true,
+          "servers": [],
+          "rows": 0,
+          "layout": "auto"
+        },
+        "x-ui": {},
+        "type": "object",
+        "properties": {
+          "showServer": {
+            "title": "Show the server name",
+            "default": true,
+            "x-ui": {
+              "label": {
+                "en": "Show the server name",
+                "es": "Mostrar el servidor"
+              }
+            },
+            "type": "boolean"
+          },
+          "servers": {
+            "title": "Servers",
+            "description": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
+            "default": [],
+            "x-ui": {
+              "label": {
+                "en": "Servers",
+                "es": "Servidores"
+              },
+              "help": {
+                "en": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
+                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama)."
+              },
+              "widget": "filter"
+            },
+            "type": "array",
+            "items": {
+              "default": "",
+              "x-ui": {
+                "placeholder": "name, group/*, !old-*"
+              },
+              "type": "string"
+            },
+            "x-filter": true
+          },
+          "rows": {
+            "title": "Rows",
+            "description": "0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in \"+N more\".",
+            "default": 0,
+            "x-ui": {
+              "label": {
+                "en": "Rows",
+                "es": "Filas"
+              },
+              "help": {
+                "en": "0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in \"+N more\".",
+                "es": "0 = las que quepan. Con un número se ven esas, en filas de un tamaño legible (menos si la tesela no da para ellas); el resto se cuenta en «+N más»."
+              }
+            },
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30
+          },
+          "layout": {
+            "title": "Row layout",
+            "description": "Automatic: the widget picks by the tile's shape.",
+            "default": "auto",
+            "x-ui": {
+              "label": {
+                "en": "Row layout",
+                "es": "Formato de fila"
+              },
+              "help": {
+                "en": "Automatic: the widget picks by the tile's shape.",
+                "es": "Automático: el widget elige según la forma de la tesela."
+              },
+              "labels": {
+                "auto": {
+                  "en": "Automatic",
+                  "es": "Automático"
+                },
+                "one-line": {
+                  "en": "One line",
+                  "es": "Una línea"
+                },
+                "detailed": {
+                  "en": "Detailed",
+                  "es": "Detallado"
+                }
+              }
+            },
+            "type": "string",
+            "enum": [
+              "auto",
+              "one-line",
+              "detailed"
+            ]
+          }
+        }
+      },
+      "screenshot": "docs/models.png",
+      "animated": false,
+      "urgent": false
+    },
+    {
+      "type": "llm/queue",
+      "name": {
+        "en": "Inference queue",
+        "es": "Cola de inferencia"
+      },
+      "description": {
+        "en": "Requests running and waiting on each server, with its KV cache usage. Turns red, and keeps the tile, when too many wait or the cache is nearly full.",
+        "es": "Peticiones en curso y en espera en cada servidor, con el uso de su caché KV. Se pone en rojo, y se queda la tesela, si esperan demasiadas o la caché está casi llena."
+      },
+      "icon": "layers",
+      "category": "dev",
+      "tags": [
+        "llm",
+        "vllm",
+        "llama.cpp",
+        "ai"
+      ],
+      "size": {
+        "min": {
+          "w": 220,
+          "h": 80
+        },
+        "preferred": {
+          "w": 600,
+          "h": 200
+        }
+      },
+      "chrome": "card",
+      "sources": [
+        "llm/servers"
+      ],
+      "options": {
+        "default": {
+          "waitingWarn": 1,
+          "waitingAlert": 3,
+          "kvWarn": 75,
+          "kvAlert": 90,
+          "onlyWithQueue": true,
+          "servers": [],
+          "rows": 0
+        },
+        "x-ui": {},
+        "type": "object",
+        "properties": {
+          "waitingWarn": {
+            "title": "Amber when this many requests wait",
+            "default": 1,
+            "x-ui": {
+              "label": {
+                "en": "Amber when this many requests wait",
+                "es": "Ámbar cuando esperan estas peticiones"
+              }
+            },
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "waitingAlert": {
+            "title": "Red when this many requests wait",
+            "default": 3,
+            "x-ui": {
+              "label": {
+                "en": "Red when this many requests wait",
+                "es": "Rojo cuando esperan estas peticiones"
+              }
+            },
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "kvWarn": {
+            "title": "Amber when the KV cache reaches",
+            "default": 75,
+            "x-ui": {
+              "label": {
+                "en": "Amber when the KV cache reaches",
+                "es": "Ámbar cuando la caché KV llega a"
+              },
+              "unit": "%",
+              "slider": true
+            },
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 100
+          },
+          "kvAlert": {
+            "title": "Red when the KV cache reaches",
+            "default": 90,
+            "x-ui": {
+              "label": {
+                "en": "Red when the KV cache reaches",
+                "es": "Rojo cuando la caché KV llega a"
+              },
+              "unit": "%",
+              "slider": true
+            },
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 100
+          },
+          "onlyWithQueue": {
+            "title": "Only servers that report a queue",
+            "default": true,
+            "x-ui": {
+              "label": {
+                "en": "Only servers that report a queue",
+                "es": "Solo servidores que dan cola"
+              }
+            },
+            "type": "boolean"
+          },
+          "servers": {
+            "title": "Servers",
+            "description": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
+            "default": [],
+            "x-ui": {
+              "label": {
+                "en": "Servers",
+                "es": "Servidores"
+              },
+              "help": {
+                "en": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
+                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama)."
+              },
+              "widget": "filter"
+            },
+            "type": "array",
+            "items": {
+              "default": "",
+              "x-ui": {
+                "placeholder": "name, group/*, !old-*"
+              },
+              "type": "string"
+            },
+            "x-filter": true
+          },
+          "rows": {
+            "title": "Rows",
+            "description": "0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in \"+N more\".",
+            "default": 0,
+            "x-ui": {
+              "label": {
+                "en": "Rows",
+                "es": "Filas"
+              },
+              "help": {
+                "en": "0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in \"+N more\".",
+                "es": "0 = las que quepan. Con un número se ven esas, en filas de un tamaño legible (menos si la tesela no da para ellas); el resto se cuenta en «+N más»."
+              }
+            },
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30
+          }
+        }
+      },
+      "screenshot": "docs/queue.png",
+      "animated": false,
+      "urgent": true
+    },
+    {
+      "type": "llm/status",
+      "name": {
+        "en": "LLM servers",
+        "es": "Servidores LLM"
+      },
+      "description": {
+        "en": "One line per server for small panels: up or down, the loaded model and its tokens per second.",
+        "es": "Una línea por servidor para pantallas pequeñas: si está activo, el modelo cargado y sus tokens por segundo."
+      },
+      "icon": "server",
+      "category": "dev",
+      "tags": [
+        "llm",
+        "ollama",
+        "ai"
+      ],
+      "size": {
+        "min": {
+          "w": 140,
+          "h": 40
+        },
+        "preferred": {
+          "w": 320,
+          "h": 160
+        }
+      },
+      "chrome": "card",
+      "sources": [
+        "llm/servers"
+      ],
+      "options": {
+        "default": {
+          "servers": [],
+          "rows": 0
+        },
+        "x-ui": {},
+        "type": "object",
+        "properties": {
+          "servers": {
+            "title": "Servers",
+            "description": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
+            "default": [],
+            "x-ui": {
+              "label": {
+                "en": "Servers",
+                "es": "Servidores"
+              },
+              "help": {
+                "en": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
+                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama)."
+              },
+              "widget": "filter"
+            },
+            "type": "array",
+            "items": {
+              "default": "",
+              "x-ui": {
+                "placeholder": "name, group/*, !old-*"
+              },
+              "type": "string"
+            },
+            "x-filter": true
+          },
+          "rows": {
+            "title": "Rows",
+            "description": "0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in \"+N more\".",
+            "default": 0,
+            "x-ui": {
+              "label": {
+                "en": "Rows",
+                "es": "Filas"
+              },
+              "help": {
+                "en": "0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in \"+N more\".",
+                "es": "0 = las que quepan. Con un número se ven esas, en filas de un tamaño legible (menos si la tesela no da para ellas); el resto se cuenta en «+N más»."
+              }
+            },
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30
+          }
+        }
+      },
+      "screenshot": "docs/status.png",
+      "animated": false,
+      "urgent": false
+    }
+  ],
+  "sources": [
+    {
+      "type": "llm/servers",
+      "name": {
+        "en": "LLM servers",
+        "es": "Servidores de LLM"
+      },
+      "description": {
+        "en": "Local inference servers (Ollama, llama.cpp, vLLM, TGI, OpenAI-compatible): reachability, loaded models, queue, tokens/s, KV cache and time to first token, where each exposes them.",
+        "es": "Servidores de inferencia locales (Ollama, llama.cpp, vLLM, TGI, compatibles con OpenAI): si responden, modelos cargados, cola, tokens/s, caché KV y tiempo hasta el primer token, según lo que expone cada uno."
+      },
+      "polled": true,
+      "intervalMs": 5000,
+      "options": {
+        "default": {
+          "endpoints": [
+            {
+              "name": "ollama",
+              "kind": "ollama",
+              "url": "http://127.0.0.1:11434",
+              "token": ""
+            }
+          ]
+        },
+        "x-ui": {},
+        "type": "object",
+        "properties": {
+          "endpoints": {
+            "title": "Servers",
+            "default": [
+              {
+                "name": "ollama",
+                "kind": "ollama",
+                "url": "http://127.0.0.1:11434",
+                "token": ""
+              }
+            ],
+            "x-ui": {
+              "label": {
+                "en": "Servers",
+                "es": "Servidores"
+              }
+            },
+            "type": "array",
+            "items": {
+              "default": {
+                "name": "",
+                "kind": "ollama",
+                "url": "",
+                "token": ""
+              },
+              "x-ui": {},
+              "type": "object",
+              "properties": {
+                "name": {
+                  "title": "Name",
+                  "default": "",
+                  "x-ui": {
+                    "label": {
+                      "en": "Name",
+                      "es": "Nombre"
+                    },
+                    "placeholder": "ollama"
+                  },
+                  "type": "string"
+                },
+                "kind": {
+                  "title": "Server",
+                  "default": "ollama",
+                  "x-ui": {
+                    "label": {
+                      "en": "Server",
+                      "es": "Servidor"
+                    },
+                    "labels": {
+                      "ollama": "Ollama",
+                      "llamacpp": "llama.cpp server",
+                      "vllm": "vLLM",
+                      "openai": {
+                        "en": "OpenAI-compatible (LM Studio…)",
+                        "es": "Compatible con OpenAI (LM Studio…)"
+                      },
+                      "tgi": "TGI"
+                    }
+                  },
+                  "type": "string",
+                  "enum": [
+                    "ollama",
+                    "llamacpp",
+                    "vllm",
+                    "openai",
+                    "tgi"
+                  ]
+                },
+                "url": {
+                  "title": "Address",
+                  "default": "",
+                  "x-ui": {
+                    "label": {
+                      "en": "Address",
+                      "es": "Dirección"
+                    },
+                    "placeholder": "http://192.168.1.40:11434",
+                    "format": "url"
+                  },
+                  "x-risk": "network",
+                  "type": "string"
+                },
+                "token": {
+                  "title": "Bearer token",
+                  "description": "Only if the server asks for an API key. Secret: leave it empty (or a placeholder such as \"<token>\"). Kiosko keeps the value it already has, or asks for it in the editor.",
+                  "default": "",
+                  "x-ui": {
+                    "label": {
+                      "en": "Bearer token",
+                      "es": "Token Bearer"
+                    },
+                    "help": {
+                      "en": "Only if the server asks for an API key.",
+                      "es": "Solo si el servidor pide una clave de API."
+                    },
+                    "secret": true
+                  },
+                  "x-secret": true,
+                  "type": "string"
+                }
+              }
+            },
+            "maxItems": 12
+          }
+        }
+      }
+    }
+  ],
+  "interludes": [],
+  "templates": []
+}
