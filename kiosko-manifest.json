@@ -6,7 +6,7 @@
     "en": "Local LLMs",
     "es": "LLM locales"
   },
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": {
     "en": "Tokens per second, loaded models and request queues of your local LLM servers.",
     "es": "Tokens por segundo, modelos cargados y colas de peticiones de tus servidores de LLM locales."
@@ -338,7 +338,9 @@
       ],
       "options": {
         "default": {
+          "waitingWarn": 1,
           "waitingAlert": 3,
+          "kvWarn": 75,
           "kvAlert": 90,
           "onlyWithQueue": true,
           "servers": [],
@@ -347,6 +349,19 @@
         "x-ui": {},
         "type": "object",
         "properties": {
+          "waitingWarn": {
+            "title": "Amber when this many requests wait",
+            "default": 1,
+            "x-ui": {
+              "label": {
+                "en": "Amber when this many requests wait",
+                "es": "Ámbar cuando esperan estas peticiones"
+              }
+            },
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
           "waitingAlert": {
             "title": "Red when this many requests wait",
             "default": 3,
@@ -358,6 +373,21 @@
             },
             "type": "integer",
             "minimum": 1,
+            "maximum": 100
+          },
+          "kvWarn": {
+            "title": "Amber when the KV cache reaches",
+            "default": 75,
+            "x-ui": {
+              "label": {
+                "en": "Amber when the KV cache reaches",
+                "es": "Ámbar cuando la caché KV llega a"
+              },
+              "unit": "%",
+              "slider": true
+            },
+            "type": "integer",
+            "minimum": 10,
             "maximum": 100
           },
           "kvAlert": {

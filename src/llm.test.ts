@@ -217,7 +217,7 @@ test('plugin: every widget renders its demo and with no servers; idle and urgent
     assert.equal(w.idle!(st({ 'llm/servers': quiet })), true, `${w.id}: idle when nothing generates`);
   }
   const q = plugin.widgets!.find((w) => w.id === 'queue')!;
-  const qo = { waitingAlert: 3, kvAlert: 90, onlyWithQueue: true, servers: [], rows: 0 };
+  const qo = { waitingWarn: 1, waitingAlert: 3, kvWarn: 75, kvAlert: 90, onlyWithQueue: true, servers: [], rows: 0 };
   const hot = { at: now, servers: [{ ...demoData(now).servers[1]!, waiting: 7 }] };
   const qs = (options: object, sources: Record<string, unknown>) => ({ options, data: undefined, sources, now, working: true }) as never;
   assert.equal(q.urgent!(qs(qo, { 'llm/servers': hot })), true);
@@ -257,4 +257,12 @@ test('lists: empty, rows and "+N more"', async () => {
     assert.equal(st(id, {}), false, `${id}: unknown until the first read`);
   }
   assert.equal(st('models', demoSrc, { servers: ['lm-studio'] }), true, 'a server with no models');
+});
+
+test('queue thresholds: amber from …Warn, red from …Alert', async () => {
+  const { thresholdLevel } = await import('./index.ts');
+  assert.equal(thresholdLevel(0, 1, 3), 'ok');
+  assert.equal(thresholdLevel(1, 1, 3), 'warn');
+  assert.equal(thresholdLevel(3, 1, 3), 'alert');
+  assert.equal(thresholdLevel(80, 75, 90), 'warn');
 });

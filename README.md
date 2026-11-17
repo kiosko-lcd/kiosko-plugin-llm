@@ -66,7 +66,9 @@ Uses: `llm/servers`.
 
 | Option | Type | Default | |
 |---|---|---|---|
+| `waitingWarn` | number | `1` | Amber when this many requests wait |
 | `waitingAlert` | number | `3` | Red when this many requests wait |
+| `kvWarn` | number | `75` | Amber when the KV cache reaches |
 | `kvAlert` | number | `90` | Red when the KV cache reaches |
 | `onlyWithQueue` | boolean | `true` | Only servers that report a queue |
 | `servers` | list | `[]` | Servers. Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama). |
