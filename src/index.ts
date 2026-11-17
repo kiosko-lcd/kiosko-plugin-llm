@@ -293,9 +293,14 @@ export const queue = defineWidget({
         kit.drawTracked(g, kit.truncate(g, s.name, box.w - dw - ts, name), box.x, top + ts, { ...name, color: colors.inkDim });
         return;
       }
-      const counts = `${s.running ?? '–'} ${tr({ en: 'run', es: 'en curso' })} · ${s.waiting ?? '–'} ${tr({ en: 'wait', es: 'esperan' })}`;
-      const co = { size: ts, family: fonts.mono, color: (s.waiting ?? 0) >= options.waitingAlert ? colors.alert : on ? colors.info : colors.inkFaint };
-      const cw = kit.drawTracked(g, counts, box.x + box.w, top + ts, { ...co, align: 'right' });
+      const full = `${s.running ?? '–'} ${tr({ en: 'run', es: 'en curso' })} · ${s.waiting ?? '–'} ${tr({ en: 'wait', es: 'esperan' })}`;
+      // At most two thirds of the row: a bit smaller first, then the numbers alone ("2 · 1"), never out of the box.
+      const room = box.w * 0.66;
+      const base = { family: fonts.mono, color: (s.waiting ?? 0) >= options.waitingAlert ? colors.alert : on ? colors.info : colors.inkFaint };
+      const fitted = kit.fitSize(g, full, room, { ...base, size: ts }, Math.max(9, Math.round(ts * 0.75)));
+      const counts = kit.measureTracked(g, full, { ...base, size: fitted }) <= room ? full : `${s.running ?? '–'} · ${s.waiting ?? '–'}`;
+      const co = { ...base, size: counts === full ? fitted : ts };
+      const cw = kit.drawTracked(g, kit.truncate(g, counts, box.w, co), box.x + box.w, top + ts, { ...co, align: 'right' });
       kit.drawTracked(g, kit.truncate(g, s.name, box.w - cw - ts, name), box.x, top + ts, name);
       if (s.kvUsage !== undefined) {
         const kvHot = s.kvUsage * 100 >= options.kvAlert;
