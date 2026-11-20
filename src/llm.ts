@@ -4,6 +4,7 @@
  * end reports what it exposes and nothing more; counters become rates
  * between two polls, so the reader keeps a small state per endpoint.
  */
+import type { Formatters } from '@kiosko/sdk';
 import { bucketDelta, buckets, counterRate, label, parseProm, quantile, sum, type Metrics } from './prom.ts';
 
 export const KINDS = ['ollama', 'llamacpp', 'vllm', 'openai', 'tgi'] as const;
@@ -314,8 +315,11 @@ export function fmtTps(v: number | undefined): string {
   return v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(0) : v.toFixed(1);
 }
 
-/** Keep-alive countdown: "4:59", "12 min", "∞" (Ollama gives a far-future date for keep_alive -1). */
-export function countdown(expiresAt: string | undefined, now: number): string {
+/**
+ * Keep-alive countdown: "4:59", "12 min", "2 h" (in the user's language
+ * through `fmt`: "12 分鐘"), "∞" (Ollama gives a far-future date for keep_alive -1).
+ */
+export function countdown(expiresAt: string | undefined, now: number, fmt?: Pick<Formatters, 'duration'>): string {
   if (!expiresAt) return '';
   const ms = Date.parse(expiresAt) - now;
   if (Number.isNaN(ms)) return '';
@@ -323,8 +327,9 @@ export function countdown(expiresAt: string | undefined, now: number): string {
   if (ms <= 0) return '0:00';
   const s = Math.round(ms / 1000);
   if (s < 600) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-  if (s < 5400) return `${Math.round(s / 60)} min`;
-  return `${Math.round(s / 3600)} h`;
+  const length = s < 5400 ? Math.round(s / 60) * 60_000 : Math.round(s / 3600) * 3_600_000;
+  if (fmt) return fmt.duration(length, { compact: true });
+  return s < 5400 ? `${length / 60_000} min` : `${length / 3_600_000} h`;
 }
 
 /* ---------- demo ---------- */

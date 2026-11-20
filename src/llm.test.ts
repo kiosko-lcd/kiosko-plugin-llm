@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createFormatters } from '@kiosko/sdk';
 import { bucketDelta, buckets, counterRate, parseProm, quantile, sum } from './prom.ts';
 import { baseUrl, busy, countdown, createState, demoData, fmtBytes, fmtCtx, readServers, vllmFromMetrics, type Fetch } from './llm.ts';
 import plugin, { congested, modelRows, queueServers, rateServers, serverBudget, serversOf } from './index.ts';
@@ -265,4 +266,17 @@ test('queue thresholds: amber from …Warn, red from …Alert', async () => {
   assert.equal(thresholdLevel(1, 1, 3), 'warn');
   assert.equal(thresholdLevel(3, 1, 3), 'alert');
   assert.equal(thresholdLevel(80, 75, 90), 'warn');
+});
+
+test('keep-alive countdown in the user language through fmt', () => {
+  const now = Date.parse('2026-11-09T10:00:00Z');
+  const at = (ms: number) => new Date(now + ms).toISOString();
+  const fmt = (locale: string) => createFormatters({ locale, now });
+  assert.equal(countdown(at(23 * 60_000), now), '23 min');
+  assert.equal(countdown(at(2 * 3_600_000), now), '2 h');
+  assert.equal(countdown(at(23 * 60_000), now, fmt('en')), '23 min');
+  assert.equal(countdown(at(2 * 3_600_000), now, fmt('es')), '2 h');
+  assert.equal(countdown(at(23 * 60_000), now, fmt('zh-TW')), '23 分鐘');
+  assert.equal(countdown(at(2 * 3_600_000), now, fmt('zh-CN')), '2 小时');
+  assert.equal(countdown(at(4 * 60_000 + 12_000), now, fmt('zh-CN')), '4:12');
 });

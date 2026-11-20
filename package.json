@@ -30,6 +30,12 @@
     "plugin": "./dist/index.js",
     "id": "llm",
     "sdk": "^0.2.0",
+    "languages": [
+      "en",
+      "es",
+      "zh-Hant",
+      "zh-Hans"
+    ],
     "manifest": "./kiosko-manifest.json"
   },
   "files": [
