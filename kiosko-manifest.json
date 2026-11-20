@@ -545,7 +545,7 @@
         "en": "One line per server for small panels: up or down, the loaded model and its tokens per second.",
         "es": "Una línea por servidor para pantallas pequeñas: si está activo, el modelo cargado y sus tokens por segundo.",
         "zh-Hant": "每台伺服器一行，適合小面板：是否上線、已載入的模型及其每秒 token 數。",
-        "zh-Hans": "每台服务器一行，适合小屏幕：是否在线、已加载的模型及其每秒 token 数。"
+        "zh-Hans": "每台服务器一行，适合小尺寸副屏：是否在线、已加载的模型及其每秒 token 数。"
       },
       "icon": "server",
       "category": "dev",

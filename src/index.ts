@@ -148,7 +148,7 @@ export const throughput = defineWidget({
       const bw = kit.drawTracked(g, fmtTps(s.genTps), x + pad, by, big);
       const small = { size: Math.round(bigS * 0.3), family: fonts.sans, color: colors.inkDim };
       kit.drawTracked(g, 'tok/s', x + pad + bw + small.size * 0.4, by, small);
-      if (s.promptTps !== undefined) kit.drawTracked(g, `${tr({ en: 'prompt', es: 'prompt', 'zh-Hant': 'prompt', 'zh-Hans': 'prompt' })} ${fmtTps(s.promptTps)}`, x + pad + bw + small.size * 0.4, by - small.size * 1.3, { ...small, color: colors.inkFaint });
+      if (s.promptTps !== undefined) kit.drawTracked(g, `${tr({ en: 'prompt', es: 'prompt', 'zh-Hant': '提示', 'zh-Hans': '提示词' })} ${fmtTps(s.promptTps)}`, x + pad + bw + small.size * 0.4, by - small.size * 1.3, { ...small, color: colors.inkFaint });
       const vals = s.history.filter(([tm]) => tm > now - options.historyMs).map(([, v]) => v);
       const sx = x + pad, sy = by + bigS * 0.12, sw = w, sh = y + ch - pad - sy;
       if (sh > 10) bars(g, ctx, vals, sx, sy, sw, sh, on ? colors.info : colors.inkFaint);
@@ -217,7 +217,7 @@ export const models = defineWidget({
       const { s, m } = rows[i]!;
       const on = busy(s);
       const base = detailed ? row.y + ts : row.y + row.h * 0.5 + ts * 0.36;
-      const left = countdown(m.expiresAt, now);
+      const left = countdown(m.expiresAt, now, ctx.fmt);
       const soon = m.expiresAt !== undefined && Date.parse(m.expiresAt) - now < 60_000;
       const cd = { size: detailed ? ts : ms, family: fonts.mono, color: soon ? colors.warn : colors.inkDim };
       const cw = left ? kit.drawTracked(g, left, box.x + box.w, base, { ...cd, align: 'right' }) : 0;
@@ -344,7 +344,7 @@ export const status = defineWidget({
     en: 'One line per server for small panels: up or down, the loaded model and its tokens per second.',
     es: 'Una línea por servidor para pantallas pequeñas: si está activo, el modelo cargado y sus tokens por segundo.',
     'zh-Hant': '每台伺服器一行，適合小面板：是否上線、已載入的模型及其每秒 token 數。',
-    'zh-Hans': '每台服务器一行，适合小屏幕：是否在线、已加载的模型及其每秒 token 数。',
+    'zh-Hans': '每台服务器一行，适合小尺寸副屏：是否在线、已加载的模型及其每秒 token 数。',
   },
   icon: 'server',
   category: 'dev',
