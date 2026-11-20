@@ -36,7 +36,7 @@ export const servers = defineSource({
   // The whole read: every server is polled in parallel, each with a share of it (see `serverBudget`).
   timeoutMs: 2500,
   read: ({ options, signal, timeoutMs }) => readServers(options.endpoints, { timeoutMs: serverBudget(timeoutMs), signal }),
-  demo: ({ now }) => demoData(now),
+  demo: ({ now, locale }) => demoData(now, locale),
 });
 
 /**
@@ -51,7 +51,7 @@ export function serverBudget(readTimeoutMs: number): number {
 type Ctx = RenderContext<any, unknown>;
 type State = { options: { servers: Filter }; sources: Record<string, unknown> };
 const dataOf = (sources: Record<string, unknown>) => sources[SOURCE] as LlmData | undefined;
-const demo = ({ now }: { now: number }) => ({ sources: { [SOURCE]: demoData(now) } });
+const demo = ({ now, locale }: { now: number; locale: string }) => ({ sources: { [SOURCE]: demoData(now, locale) } });
 
 /** The `servers` option of every widget: which servers it shows, by name or address. */
 const serversOption = () =>
