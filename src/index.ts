@@ -392,6 +392,7 @@ export default definePlugin({
   id: 'llm',
   name: { en: 'Local LLMs', es: 'LLM locales', 'zh-Hant': '本機 LLM', 'zh-Hans': '本地大模型' },
   version: '0.2.1',
+  languages: ['en', 'es', 'zh-Hant', 'zh-Hans'],
   sdk: '^0.2.0',
   permissions: { network: ['user'] },
   description: { en: 'Tokens per second, loaded models and request queues of your local LLM servers.', es: 'Tokens por segundo, modelos cargados y colas de peticiones de tus servidores de LLM locales.', 'zh-Hant': '你本機 LLM 伺服器的每秒 token 數、已載入模型與請求佇列。', 'zh-Hans': '你本地大模型服务器的每秒 token 数、已加载模型和请求队列。' },

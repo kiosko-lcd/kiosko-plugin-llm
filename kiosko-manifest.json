@@ -4,12 +4,16 @@
   "package": "kiosko-plugin-llm",
   "name": {
     "en": "Local LLMs",
-    "es": "LLM locales"
+    "es": "LLM locales",
+    "zh-Hant": "本機 LLM",
+    "zh-Hans": "本地大模型"
   },
   "version": "0.2.1",
   "description": {
     "en": "Tokens per second, loaded models and request queues of your local LLM servers.",
-    "es": "Tokens por segundo, modelos cargados y colas de peticiones de tus servidores de LLM locales."
+    "es": "Tokens por segundo, modelos cargados y colas de peticiones de tus servidores de LLM locales.",
+    "zh-Hant": "你本機 LLM 伺服器的每秒 token 數、已載入模型與請求佇列。",
+    "zh-Hans": "你本地大模型服务器的每秒 token 数、已加载模型和请求队列。"
   },
   "author": "Kiosko",
   "license": "MIT",
@@ -24,7 +28,9 @@
   ],
   "languages": [
     "en",
-    "es"
+    "es",
+    "zh-Hant",
+    "zh-Hans"
   ],
   "categories": [
     "dev"
@@ -63,11 +69,15 @@
       "type": "llm/throughput",
       "name": {
         "en": "Tokens per second",
-        "es": "Tokens por segundo"
+        "es": "Tokens por segundo",
+        "zh-Hant": "每秒 token 數",
+        "zh-Hans": "每秒 token 数"
       },
       "description": {
         "en": "Generation tokens per second of each server in big figures, prompt processing in small, and a sparkline of the last minutes. Dim while idle.",
-        "es": "Tokens por segundo generados por cada servidor en grande, el procesado del prompt en pequeño y una gráfica de los últimos minutos. Apagado en reposo."
+        "es": "Tokens por segundo generados por cada servidor en grande, el procesado del prompt en pequeño y una gráfica de los últimos minutos. Apagado en reposo.",
+        "zh-Hant": "以大字顯示各伺服器每秒生成的 token 數，小字顯示提示處理速度，並附最近幾分鐘的走勢線。閒置時保持暗色。",
+        "zh-Hans": "以大字显示各服务器每秒生成的 token 数，小字显示提示词处理速度，并附最近几分钟的迷你走势图。空闲时保持暗色。"
       },
       "icon": "activity",
       "category": "dev",
@@ -108,11 +118,15 @@
             "x-ui": {
               "label": {
                 "en": "Sparkline span",
-                "es": "Duración de la gráfica"
+                "es": "Duración de la gráfica",
+                "zh-Hant": "走勢線時長",
+                "zh-Hans": "走势图时长"
               },
               "help": {
                 "en": "Up to 30 min, what the source keeps.",
-                "es": "Hasta 30 min, lo que guarda la fuente."
+                "es": "Hasta 30 min, lo que guarda la fuente.",
+                "zh-Hant": "最多 30 分鐘，即資料來源保留的長度。",
+                "zh-Hans": "最多 30 分钟，即数据源保留的长度。"
               },
               "unit": "ms"
             },
@@ -127,11 +141,15 @@
             "x-ui": {
               "label": {
                 "en": "Only servers that report tokens/s",
-                "es": "Solo servidores que dan tokens/s"
+                "es": "Solo servidores que dan tokens/s",
+                "zh-Hant": "僅限回報 tokens/s 的伺服器",
+                "zh-Hans": "仅限报告 tokens/s 的服务器"
               },
               "help": {
                 "en": "Ollama does not expose tokens/s.",
-                "es": "Ollama no expone tokens/s."
+                "es": "Ollama no expone tokens/s.",
+                "zh-Hant": "Ollama 不提供 tokens/s。",
+                "zh-Hans": "Ollama 不提供 tokens/s。"
               }
             },
             "type": "boolean"
@@ -143,11 +161,15 @@
             "x-ui": {
               "label": {
                 "en": "Servers",
-                "es": "Servidores"
+                "es": "Servidores",
+                "zh-Hant": "伺服器",
+                "zh-Hans": "服务器"
               },
               "help": {
                 "en": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
-                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama)."
+                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama).",
+                "zh-Hant": "留空：全部。以逗號分隔的名稱（與資料來源中相同）或模式：* 符合任何內容，開頭加 ! 表示排除（vllm, gpu-*, !ollama）。",
+                "zh-Hans": "留空：全部。以逗号分隔的名称（与数据源中相同）或模式：* 匹配任意内容，开头加 ! 表示排除（vllm, gpu-*, !ollama）。"
               },
               "widget": "filter"
             },
@@ -171,11 +193,15 @@
       "type": "llm/models",
       "name": {
         "en": "Loaded models",
-        "es": "Modelos cargados"
+        "es": "Modelos cargados",
+        "zh-Hant": "已載入模型",
+        "zh-Hans": "已加载模型"
       },
       "description": {
         "en": "The models in memory across your servers: size and VRAM, context length and, for Ollama, how long until keep-alive unloads them.",
-        "es": "Los modelos en memoria en tus servidores: tamaño y VRAM, longitud de contexto y, en Ollama, cuánto falta para que el keep-alive los descargue."
+        "es": "Los modelos en memoria en tus servidores: tamaño y VRAM, longitud de contexto y, en Ollama, cuánto falta para que el keep-alive los descargue.",
+        "zh-Hant": "你各伺服器記憶體中的模型：大小與顯示記憶體、上下文長度，以及 Ollama 的 keep-alive 還有多久會將其卸載。",
+        "zh-Hans": "你各服务器内存中的模型：大小和显存、上下文长度，以及 Ollama 的 keep-alive 还有多久将其卸载。"
       },
       "icon": "cpu",
       "category": "dev",
@@ -215,7 +241,9 @@
             "x-ui": {
               "label": {
                 "en": "Show the server name",
-                "es": "Mostrar el servidor"
+                "es": "Mostrar el servidor",
+                "zh-Hant": "顯示伺服器名稱",
+                "zh-Hans": "显示服务器名称"
               }
             },
             "type": "boolean"
@@ -227,11 +255,15 @@
             "x-ui": {
               "label": {
                 "en": "Servers",
-                "es": "Servidores"
+                "es": "Servidores",
+                "zh-Hant": "伺服器",
+                "zh-Hans": "服务器"
               },
               "help": {
                 "en": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
-                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama)."
+                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama).",
+                "zh-Hant": "留空：全部。以逗號分隔的名稱（與資料來源中相同）或模式：* 符合任何內容，開頭加 ! 表示排除（vllm, gpu-*, !ollama）。",
+                "zh-Hans": "留空：全部。以逗号分隔的名称（与数据源中相同）或模式：* 匹配任意内容，开头加 ! 表示排除（vllm, gpu-*, !ollama）。"
               },
               "widget": "filter"
             },
@@ -252,11 +284,15 @@
             "x-ui": {
               "label": {
                 "en": "Rows",
-                "es": "Filas"
+                "es": "Filas",
+                "zh-Hant": "列數",
+                "zh-Hans": "行数"
               },
               "help": {
                 "en": "0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in \"+N more\".",
-                "es": "0 = las que quepan. Con un número se ven esas, en filas de un tamaño legible (menos si la tesela no da para ellas); el resto se cuenta en «+N más»."
+                "es": "0 = las que quepan. Con un número se ven esas, en filas de un tamaño legible (menos si la tesela no da para ellas); el resto se cuenta en «+N más».",
+                "zh-Hant": "0 = 盡量放滿。填數字則顯示該數量，並以易讀的大小排列（方格太小時會減少）；其餘的計入「還有 N 個」。",
+                "zh-Hans": "0 = 尽量放满。填数字则显示该数量，并以易读的大小排列（格子太小时会减少）；其余的计入“还有 N 个”。"
               }
             },
             "type": "integer",
@@ -270,24 +306,34 @@
             "x-ui": {
               "label": {
                 "en": "Row layout",
-                "es": "Formato de fila"
+                "es": "Formato de fila",
+                "zh-Hant": "列版面",
+                "zh-Hans": "行布局"
               },
               "help": {
                 "en": "Automatic: the widget picks by the tile's shape.",
-                "es": "Automático: el widget elige según la forma de la tesela."
+                "es": "Automático: el widget elige según la forma de la tesela.",
+                "zh-Hant": "自動：小工具依方格形狀選擇。",
+                "zh-Hans": "自动：小组件根据格子形状选择。"
               },
               "labels": {
                 "auto": {
                   "en": "Automatic",
-                  "es": "Automático"
+                  "es": "Automático",
+                  "zh-Hant": "自動",
+                  "zh-Hans": "自动"
                 },
                 "one-line": {
                   "en": "One line",
-                  "es": "Una línea"
+                  "es": "Una línea",
+                  "zh-Hant": "單行",
+                  "zh-Hans": "单行"
                 },
                 "detailed": {
                   "en": "Detailed",
-                  "es": "Detallado"
+                  "es": "Detallado",
+                  "zh-Hant": "詳細",
+                  "zh-Hans": "详细"
                 }
               }
             },
@@ -308,11 +354,15 @@
       "type": "llm/queue",
       "name": {
         "en": "Inference queue",
-        "es": "Cola de inferencia"
+        "es": "Cola de inferencia",
+        "zh-Hant": "推論佇列",
+        "zh-Hans": "推理队列"
       },
       "description": {
         "en": "Requests running and waiting on each server, with its KV cache usage. Turns red, and keeps the tile, when too many wait or the cache is nearly full.",
-        "es": "Peticiones en curso y en espera en cada servidor, con el uso de su caché KV. Se pone en rojo, y se queda la tesela, si esperan demasiadas o la caché está casi llena."
+        "es": "Peticiones en curso y en espera en cada servidor, con el uso de su caché KV. Se pone en rojo, y se queda la tesela, si esperan demasiadas o la caché está casi llena.",
+        "zh-Hant": "各伺服器執行中與等待中的請求，以及其 KV 快取用量。等待的請求過多或快取將滿時會變紅，並持續佔用方格。",
+        "zh-Hans": "各服务器运行中和等待中的请求，以及其 KV 缓存用量。等待的请求过多或缓存将满时会变红，并持续占用格子。"
       },
       "icon": "layers",
       "category": "dev",
@@ -355,7 +405,9 @@
             "x-ui": {
               "label": {
                 "en": "Amber when this many requests wait",
-                "es": "Ámbar cuando esperan estas peticiones"
+                "es": "Ámbar cuando esperan estas peticiones",
+                "zh-Hant": "等待請求達此數量時顯示琥珀色",
+                "zh-Hans": "等待请求达到此数量时显示琥珀色"
               }
             },
             "type": "integer",
@@ -368,7 +420,9 @@
             "x-ui": {
               "label": {
                 "en": "Red when this many requests wait",
-                "es": "Rojo cuando esperan estas peticiones"
+                "es": "Rojo cuando esperan estas peticiones",
+                "zh-Hant": "等待請求達此數量時顯示紅色",
+                "zh-Hans": "等待请求达到此数量时显示红色"
               }
             },
             "type": "integer",
@@ -381,7 +435,9 @@
             "x-ui": {
               "label": {
                 "en": "Amber when the KV cache reaches",
-                "es": "Ámbar cuando la caché KV llega a"
+                "es": "Ámbar cuando la caché KV llega a",
+                "zh-Hant": "KV 快取達到此值時顯示琥珀色",
+                "zh-Hans": "KV 缓存达到此值时显示琥珀色"
               },
               "unit": "%",
               "slider": true
@@ -396,7 +452,9 @@
             "x-ui": {
               "label": {
                 "en": "Red when the KV cache reaches",
-                "es": "Rojo cuando la caché KV llega a"
+                "es": "Rojo cuando la caché KV llega a",
+                "zh-Hant": "KV 快取達到此值時顯示紅色",
+                "zh-Hans": "KV 缓存达到此值时显示红色"
               },
               "unit": "%",
               "slider": true
@@ -411,7 +469,9 @@
             "x-ui": {
               "label": {
                 "en": "Only servers that report a queue",
-                "es": "Solo servidores que dan cola"
+                "es": "Solo servidores que dan cola",
+                "zh-Hant": "僅限回報佇列的伺服器",
+                "zh-Hans": "仅限报告队列的服务器"
               }
             },
             "type": "boolean"
@@ -423,11 +483,15 @@
             "x-ui": {
               "label": {
                 "en": "Servers",
-                "es": "Servidores"
+                "es": "Servidores",
+                "zh-Hant": "伺服器",
+                "zh-Hans": "服务器"
               },
               "help": {
                 "en": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
-                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama)."
+                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama).",
+                "zh-Hant": "留空：全部。以逗號分隔的名稱（與資料來源中相同）或模式：* 符合任何內容，開頭加 ! 表示排除（vllm, gpu-*, !ollama）。",
+                "zh-Hans": "留空：全部。以逗号分隔的名称（与数据源中相同）或模式：* 匹配任意内容，开头加 ! 表示排除（vllm, gpu-*, !ollama）。"
               },
               "widget": "filter"
             },
@@ -448,11 +512,15 @@
             "x-ui": {
               "label": {
                 "en": "Rows",
-                "es": "Filas"
+                "es": "Filas",
+                "zh-Hant": "列數",
+                "zh-Hans": "行数"
               },
               "help": {
                 "en": "0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in \"+N more\".",
-                "es": "0 = las que quepan. Con un número se ven esas, en filas de un tamaño legible (menos si la tesela no da para ellas); el resto se cuenta en «+N más»."
+                "es": "0 = las que quepan. Con un número se ven esas, en filas de un tamaño legible (menos si la tesela no da para ellas); el resto se cuenta en «+N más».",
+                "zh-Hant": "0 = 盡量放滿。填數字則顯示該數量，並以易讀的大小排列（方格太小時會減少）；其餘的計入「還有 N 個」。",
+                "zh-Hans": "0 = 尽量放满。填数字则显示该数量，并以易读的大小排列（格子太小时会减少）；其余的计入“还有 N 个”。"
               }
             },
             "type": "integer",
@@ -469,11 +537,15 @@
       "type": "llm/status",
       "name": {
         "en": "LLM servers",
-        "es": "Servidores LLM"
+        "es": "Servidores LLM",
+        "zh-Hant": "LLM 伺服器",
+        "zh-Hans": "LLM 服务器"
       },
       "description": {
         "en": "One line per server for small panels: up or down, the loaded model and its tokens per second.",
-        "es": "Una línea por servidor para pantallas pequeñas: si está activo, el modelo cargado y sus tokens por segundo."
+        "es": "Una línea por servidor para pantallas pequeñas: si está activo, el modelo cargado y sus tokens por segundo.",
+        "zh-Hant": "每台伺服器一行，適合小面板：是否上線、已載入的模型及其每秒 token 數。",
+        "zh-Hans": "每台服务器一行，适合小屏幕：是否在线、已加载的模型及其每秒 token 数。"
       },
       "icon": "server",
       "category": "dev",
@@ -511,11 +583,15 @@
             "x-ui": {
               "label": {
                 "en": "Servers",
-                "es": "Servidores"
+                "es": "Servidores",
+                "zh-Hant": "伺服器",
+                "zh-Hans": "服务器"
               },
               "help": {
                 "en": "Empty: all. Names (as in the source) or patterns, comma-separated: * matches anything, a leading ! leaves out (vllm, gpu-*, !ollama).",
-                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama)."
+                "es": "Vacío: todos. Nombres (los de la fuente) o patrones separados por comas: * vale por cualquier cosa y un ! delante excluye (vllm, gpu-*, !ollama).",
+                "zh-Hant": "留空：全部。以逗號分隔的名稱（與資料來源中相同）或模式：* 符合任何內容，開頭加 ! 表示排除（vllm, gpu-*, !ollama）。",
+                "zh-Hans": "留空：全部。以逗号分隔的名称（与数据源中相同）或模式：* 匹配任意内容，开头加 ! 表示排除（vllm, gpu-*, !ollama）。"
               },
               "widget": "filter"
             },
@@ -536,11 +612,15 @@
             "x-ui": {
               "label": {
                 "en": "Rows",
-                "es": "Filas"
+                "es": "Filas",
+                "zh-Hant": "列數",
+                "zh-Hans": "行数"
               },
               "help": {
                 "en": "0 = as many as fit. A number shows that many, in rows of a readable size (fewer when the tile is too small for them); the rest are counted in \"+N more\".",
-                "es": "0 = las que quepan. Con un número se ven esas, en filas de un tamaño legible (menos si la tesela no da para ellas); el resto se cuenta en «+N más»."
+                "es": "0 = las que quepan. Con un número se ven esas, en filas de un tamaño legible (menos si la tesela no da para ellas); el resto se cuenta en «+N más».",
+                "zh-Hant": "0 = 盡量放滿。填數字則顯示該數量，並以易讀的大小排列（方格太小時會減少）；其餘的計入「還有 N 個」。",
+                "zh-Hans": "0 = 尽量放满。填数字则显示该数量，并以易读的大小排列（格子太小时会减少）；其余的计入“还有 N 个”。"
               }
             },
             "type": "integer",
@@ -559,11 +639,15 @@
       "type": "llm/servers",
       "name": {
         "en": "LLM servers",
-        "es": "Servidores de LLM"
+        "es": "Servidores de LLM",
+        "zh-Hant": "LLM 伺服器",
+        "zh-Hans": "LLM 服务器"
       },
       "description": {
         "en": "Local inference servers (Ollama, llama.cpp, vLLM, TGI, OpenAI-compatible): reachability, loaded models, queue, tokens/s, KV cache and time to first token, where each exposes them.",
-        "es": "Servidores de inferencia locales (Ollama, llama.cpp, vLLM, TGI, compatibles con OpenAI): si responden, modelos cargados, cola, tokens/s, caché KV y tiempo hasta el primer token, según lo que expone cada uno."
+        "es": "Servidores de inferencia locales (Ollama, llama.cpp, vLLM, TGI, compatibles con OpenAI): si responden, modelos cargados, cola, tokens/s, caché KV y tiempo hasta el primer token, según lo que expone cada uno.",
+        "zh-Hant": "本機推論伺服器（Ollama、llama.cpp、vLLM、TGI、OpenAI 相容）：是否可連線、已載入的模型、佇列、tokens/s、KV 快取與首個 token 時間，視各伺服器提供的資料而定。",
+        "zh-Hans": "本地推理服务器（Ollama、llama.cpp、vLLM、TGI、兼容 OpenAI）：是否可达、已加载的模型、队列、tokens/s、KV 缓存和首 token 时间，取决于各服务器提供的数据。"
       },
       "polled": true,
       "intervalMs": 5000,
@@ -594,7 +678,9 @@
             "x-ui": {
               "label": {
                 "en": "Servers",
-                "es": "Servidores"
+                "es": "Servidores",
+                "zh-Hant": "伺服器",
+                "zh-Hans": "服务器"
               }
             },
             "type": "array",
@@ -614,7 +700,9 @@
                   "x-ui": {
                     "label": {
                       "en": "Name",
-                      "es": "Nombre"
+                      "es": "Nombre",
+                      "zh-Hant": "名稱",
+                      "zh-Hans": "名称"
                     },
                     "placeholder": "ollama"
                   },
@@ -626,7 +714,9 @@
                   "x-ui": {
                     "label": {
                       "en": "Server",
-                      "es": "Servidor"
+                      "es": "Servidor",
+                      "zh-Hant": "伺服器",
+                      "zh-Hans": "服务器"
                     },
                     "labels": {
                       "ollama": "Ollama",
@@ -634,7 +724,9 @@
                       "vllm": "vLLM",
                       "openai": {
                         "en": "OpenAI-compatible (LM Studio…)",
-                        "es": "Compatible con OpenAI (LM Studio…)"
+                        "es": "Compatible con OpenAI (LM Studio…)",
+                        "zh-Hant": "OpenAI 相容（LM Studio…）",
+                        "zh-Hans": "兼容 OpenAI（LM Studio…）"
                       },
                       "tgi": "TGI"
                     }
@@ -654,7 +746,9 @@
                   "x-ui": {
                     "label": {
                       "en": "Address",
-                      "es": "Dirección"
+                      "es": "Dirección",
+                      "zh-Hant": "位址",
+                      "zh-Hans": "地址"
                     },
                     "placeholder": "http://192.168.1.40:11434",
                     "format": "url"
@@ -669,11 +763,15 @@
                   "x-ui": {
                     "label": {
                       "en": "Bearer token",
-                      "es": "Token Bearer"
+                      "es": "Token Bearer",
+                      "zh-Hant": "Bearer 權杖",
+                      "zh-Hans": "Bearer 令牌"
                     },
                     "help": {
                       "en": "Only if the server asks for an API key.",
-                      "es": "Solo si el servidor pide una clave de API."
+                      "es": "Solo si el servidor pide una clave de API.",
+                      "zh-Hant": "僅在伺服器要求 API 金鑰時填寫。",
+                      "zh-Hans": "仅当服务器要求 API 密钥时填写。"
                     },
                     "secret": true
                   },
