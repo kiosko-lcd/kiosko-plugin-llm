@@ -280,3 +280,13 @@ test('keep-alive countdown in the user language through fmt', () => {
   assert.equal(countdown(at(2 * 3_600_000), now, fmt('zh-CN')), '2 小时');
   assert.equal(countdown(at(4 * 60_000 + 12_000), now, fmt('zh-CN')), '4:12');
 });
+
+test('demo: Chinese users see the models people there run (Qwen, DeepSeek, GLM); others the English set', () => {
+  const names = (locale: string) => demoData(0, locale).servers.flatMap((s) => s.models.map((m) => m.name));
+  for (const zh of ['zh-Hans', 'zh-Hant']) {
+    assert.ok(names(zh).includes('qwen3:32b') && names(zh).includes('deepseek-r1:14b'), zh);
+    assert.ok(!names(zh).some((n) => /llama-3|gemma/i.test(n)), zh);
+  }
+  assert.deepEqual(names('de'), names('en'));
+  assert.ok(names('en').includes('meta-llama/Llama-3.1-8B-Instruct'));
+});

@@ -336,7 +336,36 @@ export function countdown(expiresAt: string | undefined, now: number, fmt?: Pick
 
 const GB = 1024 ** 3;
 
-export function demoData(now: number): LlmData {
+/**
+ * The models people run at home, by where the user is: Claude and Gemini are
+ * not offered in mainland China, so there (and in Taiwan) the open models
+ * that lead locally, Qwen and DeepSeek's distills. Names are proper nouns: a
+ * list per region, not a translation.
+ */
+function demoModels(now: number, locale: string) {
+  const zh = /^zh\b/i.test(locale);
+  const ttl = (ms: number) => new Date(now + ms).toISOString();
+  return zh
+    ? {
+        ollama: [
+          { name: 'qwen3:32b', sizeBytes: 20.2 * GB, vramBytes: 20.2 * GB, contextLength: 40960, expiresAt: ttl(4 * 60_000 + 12_000), quantization: 'Q4_K_M', parameters: '32.8B' },
+          { name: 'deepseek-r1:14b', sizeBytes: 9 * GB, vramBytes: 9 * GB, contextLength: 32768, expiresAt: ttl(23 * 60_000), quantization: 'Q4_K_M', parameters: '14.8B' },
+        ],
+        vllm: [{ name: 'Qwen/Qwen3-30B-A3B', contextLength: 40960 }],
+        llamacpp: [{ name: 'glm-4-9b-chat-Q4_K_M', contextLength: 16384 }],
+      }
+    : {
+        ollama: [
+          { name: 'qwen2.5-coder:32b', sizeBytes: 21.5 * GB, vramBytes: 21.5 * GB, contextLength: 32768, expiresAt: ttl(4 * 60_000 + 12_000), quantization: 'Q4_K_M', parameters: '32.8B' },
+          { name: 'nomic-embed-text:latest', sizeBytes: 0.6 * GB, vramBytes: 0.6 * GB, contextLength: 8192, expiresAt: ttl(23 * 60_000), quantization: 'F16', parameters: '137M' },
+        ],
+        vllm: [{ name: 'meta-llama/Llama-3.1-8B-Instruct', contextLength: 131072 }],
+        llamacpp: [{ name: 'gemma-3-27b-it-Q4_K_M', contextLength: 16384 }],
+      };
+}
+
+export function demoData(now: number, locale = 'en'): LlmData {
+  const models = demoModels(now, locale);
   const wave = (n: number, base: number, amp: number, seed: number): [number, number][] =>
     Array.from({ length: n }, (_, i) => [now - (n - 1 - i) * 5000, Math.max(0, base + amp * Math.sin((i + seed) / 7) + amp * 0.4 * Math.sin((i * 3 + seed) / 5))]);
   const vllmHist = wave(120, 70, 18, 3);
@@ -347,21 +376,18 @@ export function demoData(now: number): LlmData {
     servers: [
       {
         name: 'ollama', kind: 'ollama', url: 'http://192.168.1.40:11434', reachable: true, version: '0.12.6', installed: 9,
-        models: [
-          { name: 'qwen2.5-coder:32b', sizeBytes: 21.5 * GB, vramBytes: 21.5 * GB, contextLength: 32768, expiresAt: new Date(now + 4 * 60_000 + 12_000).toISOString(), quantization: 'Q4_K_M', parameters: '32.8B' },
-          { name: 'nomic-embed-text:latest', sizeBytes: 0.6 * GB, vramBytes: 0.6 * GB, contextLength: 8192, expiresAt: new Date(now + 23 * 60_000).toISOString(), quantization: 'F16', parameters: '137M' },
-        ],
+        models: models.ollama,
         history: [],
       },
       {
         name: 'vllm', kind: 'vllm', url: 'http://192.168.1.41:8000', reachable: true, version: '0.11.0',
-        models: [{ name: 'meta-llama/Llama-3.1-8B-Instruct', contextLength: 131072 }],
+        models: models.vllm,
         running: 3, waiting: 0, genTps: 85, promptTps: 412, kvUsage: 0.37, ttftP50: 0.18, ttftP95: 0.62,
         promptTokensTotal: 4_812_330, genTokensTotal: 1_204_871, requestsTotal: 9_312, history: vllmHist,
       },
       {
         name: 'llama.cpp', kind: 'llamacpp', url: 'http://192.168.1.42:8080', reachable: true, version: 'b6710',
-        models: [{ name: 'gemma-3-27b-it-Q4_K_M', contextLength: 16384 }],
+        models: models.llamacpp,
         slots: [{ id: 0, busy: false, nCtx: 8192 }, { id: 1, busy: false, nCtx: 8192 }], running: 0, waiting: 0, genTps: 0, promptTps: 0, kvUsage: 0.08,
         history: llamaHist,
       },
