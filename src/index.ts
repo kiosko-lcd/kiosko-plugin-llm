@@ -4,10 +4,15 @@
  * OpenAI-compatible servers on your LAN. Dark while nothing is generating.
  */
 import { defineSource, definePlugin, defineWidget, drawEmpty, drawMore, listLayout, listOptions, matchFilter, t, type Filter, type Graphics, type Localized, type RenderContext } from '@kiosko/sdk';
-import { DEFAULT_ENDPOINTS, HISTORY_MS, KINDS, busy, countdown, demoData, fmtBytes, fmtCtx, fmtTps, readServers, type LlmData, type LoadedModel, type ServerStatus } from './llm.ts';
+import { DEFAULT_ENDPOINTS, HISTORY_MS, KINDS, baseUrl, busy, countdown, demoData, fmtBytes, fmtCtx, fmtTps, readServers, type Endpoint, type LlmData, type LoadedModel, type ServerStatus } from './llm.ts';
+import { acquireProxy } from './proxy.ts';
+import { drawSpeed, pickSpeed } from './speed.ts';
 
 export * from './llm.ts';
 export * from './prom.ts';
+export * from './meter.ts';
+export * from './speed.ts';
+export { METERED, SpeedLog, acquireProxy, closeAllProxies, pointsAtItself, proxyAt, startProxy, type Proxy, type ProxySnapshot, type ProxySpeed } from './proxy.ts';
 
 const SOURCE = 'llm/servers';
 
@@ -28,6 +33,34 @@ export const servers = defineSource({
         kind: t.enum(KINDS, { label: { en: 'Server', es: 'Servidor', de: 'Server', 'zh-Hant': '伺服器', 'zh-Hans': '服务器' }, labels: { ollama: 'Ollama', llamacpp: 'llama.cpp server', vllm: 'vLLM', openai: { en: 'OpenAI-compatible (LM Studio…)', es: 'Compatible con OpenAI (LM Studio…)', de: 'OpenAI-kompatibel (LM Studio…)', 'zh-Hant': 'OpenAI 相容（LM Studio…）', 'zh-Hans': '兼容 OpenAI（LM Studio…）' }, tgi: 'TGI' } }),
         url: t.string({ format: 'url', risk: 'network', placeholder: 'http://192.168.1.40:11434', label: { en: 'Address', es: 'Dirección', de: 'Adresse', 'zh-Hant': '位址', 'zh-Hans': '地址' } }),
         token: t.string({ secret: true, label: { en: 'Bearer token', es: 'Token Bearer', de: 'Bearer-Token', 'zh-Hant': 'Bearer 權杖', 'zh-Hans': 'Bearer 令牌' }, help: { en: 'Only if the server asks for an API key.', es: 'Solo si el servidor pide una clave de API.', de: 'Nur wenn der Server einen API-Schlüssel verlangt.', 'zh-Hant': '僅在伺服器要求 API 金鑰時填寫。', 'zh-Hans': '仅当服务器要求 API 密钥时填写。' } }),
+        proxyPort: t.integer({
+          default: 0,
+          min: 0,
+          max: 65535,
+          risk: 'network',
+          label: { en: 'Measuring proxy port', es: 'Puerto del proxy de medición', de: 'Port des Mess-Proxys', 'zh-Hant': '測速代理連接埠', 'zh-Hans': '测速代理端口' },
+          help: {
+            en: '0 = off. For Ollama and LM Studio, which keep no tokens/s of their own: Kiosko listens on this port and passes everything to the server unchanged, reading only the counts and timings of each answer. Point your apps here (OLLAMA_HOST=127.0.0.1:11435, or the base URL http://127.0.0.1:11435/v1). Works only while Kiosko runs.',
+            es: '0 = apagado. Para Ollama y LM Studio, que no guardan tokens/s: Kiosko escucha en este puerto y pasa todo al servidor sin cambios, leyendo solo las cuentas y los tiempos de cada respuesta. Apunta tus aplicaciones aquí (OLLAMA_HOST=127.0.0.1:11435, o la URL base http://127.0.0.1:11435/v1). Solo funciona mientras Kiosko está en marcha.',
+            de: '0 = aus. Für Ollama und LM Studio, die selbst keine Tokens/s festhalten: Kiosko lauscht auf diesem Port, reicht alles unverändert an den Server weiter und liest nur Anzahlen und Zeiten jeder Antwort. Richte deine Apps hierher (OLLAMA_HOST=127.0.0.1:11435 oder die Basis-URL http://127.0.0.1:11435/v1). Funktioniert nur, solange Kiosko läuft.',
+            'zh-Hant': '0 = 關閉。適用於本身不記錄 tokens/s 的 Ollama 與 LM Studio：Kiosko 在此連接埠監聽，將所有內容原封不動轉給伺服器，只讀取每個回答的 token 數與耗時。請讓你的應用程式改連這裡（OLLAMA_HOST=127.0.0.1:11435，或基礎 URL http://127.0.0.1:11435/v1）。僅在 Kiosko 執行時有效。',
+            'zh-Hans': '0 = 关闭。适用于自身不记录 tokens/s 的 Ollama 和 LM Studio：Kiosko 在此端口监听，把所有内容原样转给服务器，只读取每个回答的 token 数和耗时。请让你的应用改连这里（OLLAMA_HOST=127.0.0.1:11435，或基础 URL http://127.0.0.1:11435/v1）。仅在 Kiosko 运行时有效。',
+          },
+        }),
+        proxyHost: t.string({
+          default: '127.0.0.1',
+          risk: 'network',
+          advanced: true,
+          placeholder: '127.0.0.1',
+          label: { en: 'Measuring proxy listens on', es: 'El proxy de medición escucha en', de: 'Mess-Proxy lauscht auf', 'zh-Hant': '測速代理監聽位址', 'zh-Hans': '测速代理监听地址' },
+          help: {
+            en: '127.0.0.1: only this computer. Another address (0.0.0.0) lets every machine that reaches this one use the server through the proxy, with no password of its own.',
+            es: '127.0.0.1: solo este ordenador. Otra dirección (0.0.0.0) deja usar el servidor a través del proxy a cualquier máquina que llegue a esta, sin contraseña propia.',
+            de: '127.0.0.1: nur dieser Rechner. Eine andere Adresse (0.0.0.0) lässt jeden Rechner, der diesen erreicht, den Server über den Proxy nutzen, ohne eigenes Passwort.',
+            'zh-Hant': '127.0.0.1：僅限本機。其他位址（0.0.0.0）會讓任何能連到本機的電腦經由代理使用該伺服器，且代理本身沒有密碼。',
+            'zh-Hans': '127.0.0.1：仅限本机。其他地址（0.0.0.0）会让任何能连到本机的电脑通过代理使用该服务器，且代理本身没有密码。',
+          },
+        }),
       }),
       { default: DEFAULT_ENDPOINTS, max: 12, label: { en: 'Servers', es: 'Servidores', de: 'Server', 'zh-Hant': '伺服器', 'zh-Hans': '服务器' } },
     ),
@@ -36,8 +69,22 @@ export const servers = defineSource({
   // The whole read: every server is polled in parallel, each with a share of it (see `serverBudget`).
   timeoutMs: 2500,
   read: ({ options, signal, timeoutMs }) => readServers(options.endpoints, { timeoutMs: serverBudget(timeoutMs), signal }),
+  // The measuring proxies run while the source does: from the first widget that uses it until the last goes, or the options change.
+  watch: ({ options }) => startProxies(options.endpoints),
   demo: ({ now, locale }) => demoData(now, locale),
+  choices: {
+    servers: (data) => data.servers.map((s) => ({ value: s.name, label: s.url })),
+    models: (data) => [...new Set(data.servers.flatMap((s) => [...(s.speeds ?? []).map((m) => m.model), ...s.models.map((m) => m.name)]))].map((value) => ({ value })),
+  },
 });
+
+/** Starts the proxies the endpoints ask for; returns what stops them. */
+export function startProxies(endpoints: Endpoint[]): () => void {
+  const stops = endpoints
+    .filter((e) => (e.proxyPort ?? 0) > 0 && e.url?.trim())
+    .map((e) => acquireProxy({ upstream: baseUrl(e.url), host: e.proxyHost?.trim() || '127.0.0.1', port: e.proxyPort! }));
+  return () => stops.forEach((stop) => stop());
+}
 
 /**
  * How long one server may take, all its requests together: most of the
@@ -110,7 +157,7 @@ export const throughput = defineWidget({
   sources: [SOURCE],
   options: t.object({
     historyMs: t.duration({ default: 10 * 60_000, min: 60_000, max: HISTORY_MS, label: { en: 'Sparkline span', es: 'Duración de la gráfica', de: 'Zeitraum der Sparkline', 'zh-Hant': '走勢線時長', 'zh-Hans': '走势图时长' }, help: { en: 'Up to 30 min, what the source keeps.', es: 'Hasta 30 min, lo que guarda la fuente.', de: 'Bis 30 Min., so viel bewahrt die Datenquelle auf.', 'zh-Hant': '最多 30 分鐘，即資料來源保留的長度。', 'zh-Hans': '最多 30 分钟，即数据源保留的长度。' } }),
-    onlyWithRate: t.boolean({ default: true, label: { en: 'Only servers that report tokens/s', es: 'Solo servidores que dan tokens/s', de: 'Nur Server, die Tokens/s melden', 'zh-Hant': '僅限回報 tokens/s 的伺服器', 'zh-Hans': '仅限报告 tokens/s 的服务器' }, help: { en: 'Ollama does not expose tokens/s.', es: 'Ollama no expone tokens/s.', de: 'Ollama stellt keine Tokens/s bereit.', 'zh-Hant': 'Ollama 不提供 tokens/s。', 'zh-Hans': 'Ollama 不提供 tokens/s。' } }),
+    onlyWithRate: t.boolean({ default: true, label: { en: 'Only servers that report tokens/s', es: 'Solo servidores que dan tokens/s', de: 'Nur Server, die Tokens/s melden', 'zh-Hant': '僅限回報 tokens/s 的伺服器', 'zh-Hans': '仅限报告 tokens/s 的服务器' }, help: { en: 'Ollama and LM Studio report it only through the measuring proxy (see the source).', es: 'Ollama y LM Studio solo lo dan a través del proxy de medición (ver la fuente).', de: 'Ollama und LM Studio melden sie nur über den Mess-Proxy (siehe Datenquelle).', 'zh-Hant': 'Ollama 與 LM Studio 只能經由測速代理回報（見資料來源）。', 'zh-Hans': 'Ollama 和 LM Studio 只能通过测速代理报告（见数据源）。' } }),
     servers: serversOption(),
   }),
   idle,
@@ -129,9 +176,10 @@ export const throughput = defineWidget({
       return drawEmpty(g, ctx, tr(some ? { en: 'No server reports tokens/s', es: 'Ningún servidor da tokens/s', de: 'Kein Server meldet Tokens/s', 'zh-Hant': '沒有伺服器回報 tokens/s', 'zh-Hans': '没有服务器报告 tokens/s' } : noServers(data)));
     }
     const wide = box.w / box.h >= 2.2;
-    const n = list.length;
+    // As many cells as stay readable: the rest wait for a bigger tile (or another widget with a filter).
+    const n = Math.min(list.length, Math.max(1, Math.floor(wide ? box.w / 110 : box.h / 44)));
     const cw = wide ? box.w / n : box.w, ch = wide ? box.h : box.h / n;
-    list.forEach((s, i) => {
+    list.slice(0, n).forEach((s, i) => {
       const x = box.x + (wide ? i * cw : 0), y = box.y + (wide ? 0 : i * ch);
       const pad = Math.min(cw, ch) * 0.06;
       const w = cw - pad * 2, h = ch - pad;
@@ -155,6 +203,45 @@ export const throughput = defineWidget({
       const sx = x + pad, sy = by + bigS * 0.12, sw = w, sh = y + ch - pad - sy;
       if (sh > 10) bars(g, ctx, vals, sx, sy, sw, sh, on ? colors.info : colors.inkFaint);
     });
+  },
+  demo,
+});
+
+export const speed = defineWidget({
+  id: 'speed',
+  name: { en: 'Generation speed', es: 'Velocidad de generación', de: 'Generierungstempo', 'zh-Hant': '生成速度', 'zh-Hans': '生成速度' },
+  description: {
+    en: 'Tokens per second like a game shows FPS: the speed of one server or model, huge, the slowest tenth of the recent answers and the time to first token, and a curve of the last minutes. Dim while idle.',
+    es: 'Los tokens por segundo como un juego muestra los FPS: la velocidad de un servidor o modelo, en grande, el 10 % más lento de las últimas respuestas y el tiempo hasta el primer token, y una curva de los últimos minutos. Apagado en reposo.',
+    de: 'Tokens pro Sekunde, wie ein Spiel FPS zeigt: das Tempo eines Servers oder Modells groß, die langsamsten 10 % der letzten Antworten und die Zeit bis zum ersten Token, dazu eine Kurve der letzten Minuten. Gedimmt im Leerlauf.',
+    'zh-Hant': '像遊戲顯示 FPS 一樣顯示每秒 token 數：以大字顯示單一伺服器或模型的速度，加上最近回答中最慢 10% 的速度與首個 token 時間，以及最近幾分鐘的曲線。閒置時保持暗色。',
+    'zh-Hans': '像游戏显示 FPS 一样显示每秒 token 数：以大字显示单个服务器或模型的速度，加上最近回答中最慢 10% 的速度和首 token 时间，以及最近几分钟的曲线。空闲时保持暗色。',
+  },
+  icon: 'gauge',
+  category: 'dev',
+  tags: ['llm', 'tokens per second', 'ttft', 'ollama', 'lm studio', 'vllm', 'llama.cpp', 'ai'],
+  size: { min: { w: 120, h: 40 }, preferred: { w: 960, h: 462 } },
+  sources: [SOURCE],
+  options: t.object({
+    server: t.string({ default: '', placeholder: 'ollama', choices: { source: SOURCE, list: 'servers' }, label: { en: 'Server', es: 'Servidor', de: 'Server', 'zh-Hant': '伺服器', 'zh-Hans': '服务器' }, help: { en: 'Empty: the one generating now, else the last that did. A name as in the source, or a pattern (gpu-*).', es: 'Vacío: el que esté generando, si no el último que lo hizo. Un nombre de la fuente o un patrón (gpu-*).', de: 'Leer: der gerade generierende, sonst der zuletzt aktive. Ein Name wie in der Datenquelle oder ein Muster (gpu-*).', 'zh-Hant': '留空：正在生成的伺服器，否則為最後生成的那台。可填資料來源中的名稱或模式（gpu-*）。', 'zh-Hans': '留空：正在生成的服务器，否则为最后生成的那台。可填数据源中的名称或模式（gpu-*）。' } }),
+    model: t.string({ default: '', placeholder: 'qwen3:*', choices: { source: SOURCE, list: 'models' }, label: { en: 'Model', es: 'Modelo', de: 'Modell', 'zh-Hant': '模型', 'zh-Hans': '模型' }, help: { en: 'Empty: all the models of the server together. Per model with the measuring proxy; other servers, the model they hold.', es: 'Vacío: todos los modelos del servidor juntos. Por modelo con el proxy de medición; en otros servidores, el modelo que tengan cargado.', de: 'Leer: alle Modelle des Servers zusammen. Pro Modell mit dem Mess-Proxy; bei anderen Servern das geladene Modell.', 'zh-Hant': '留空：該伺服器所有模型合計。啟用測速代理時可分模型；其他伺服器則為其載入的模型。', 'zh-Hans': '留空：该服务器所有模型合计。开启测速代理时可分模型；其他服务器则为其加载的模型。' } }),
+    warnBelow: t.integer({ default: 10, min: 0, max: 1000, unit: 'tok/s', label: { en: 'Amber under', es: 'Ámbar por debajo de', de: 'Gelb unter', 'zh-Hant': '低於此值顯示琥珀色', 'zh-Hans': '低于此值显示琥珀色' }, help: { en: 'Tok/s; 0 = never. About reading speed: slower than this, you wait for the text.', es: 'Tok/s; 0 = nunca. Más o menos la velocidad de lectura: por debajo, esperas al texto.', de: 'Tok/s; 0 = nie. Etwa Lesetempo: darunter wartet man auf den Text.', 'zh-Hant': 'Tok/s；0 = 不使用。約為閱讀速度：低於此值就得等文字出來。', 'zh-Hans': 'Tok/s；0 = 不使用。约为阅读速度：低于此值就得等文字出来。' } }),
+    alertBelow: t.integer({ default: 5, min: 0, max: 1000, unit: 'tok/s', label: { en: 'Red under', es: 'Rojo por debajo de', de: 'Rot unter', 'zh-Hant': '低於此值顯示紅色', 'zh-Hans': '低于此值显示红色' }, help: { en: 'Tok/s; 0 = never. Typically a model that spilled out of VRAM.', es: 'Tok/s; 0 = nunca. Lo típico de un modelo que no cabe en la VRAM.', de: 'Tok/s; 0 = nie. Typisch für ein Modell, das nicht in den VRAM passt.', 'zh-Hant': 'Tok/s；0 = 不使用。常見於顯示記憶體放不下的模型。', 'zh-Hans': 'Tok/s；0 = 不使用。常见于显存放不下的模型。' } }),
+    historyMs: t.duration({ default: 10 * 60_000, min: 60_000, max: HISTORY_MS, label: { en: 'Curve span', es: 'Duración de la curva', de: 'Zeitraum der Kurve', 'zh-Hant': '曲線時長', 'zh-Hans': '曲线时长' }, help: { en: 'Up to 30 min, what the source keeps.', es: 'Hasta 30 min, lo que guarda la fuente.', de: 'Bis 30 Min., so viel bewahrt die Datenquelle auf.', 'zh-Hant': '最多 30 分鐘，即資料來源保留的長度。', 'zh-Hans': '最多 30 分钟，即数据源保留的长度。' } }),
+    showName: t.boolean({ default: true, label: { en: 'Show the server and model', es: 'Mostrar el servidor y el modelo', de: 'Server und Modell zeigen', 'zh-Hant': '顯示伺服器與模型', 'zh-Hans': '显示服务器和模型' } }),
+  }),
+  // Data changes are what move it: the source reads every few seconds.
+  redraw: 'never',
+  idle: ({ options, sources }) => {
+    const data = dataOf(sources);
+    return !data || !pickSpeed(data, options)?.on;
+  },
+  empty: ({ options, sources }) => {
+    const data = dataOf(sources);
+    return Boolean(data) && !pickSpeed(data!, options);
+  },
+  render(g, ctx) {
+    drawSpeed(g, ctx, dataOf(ctx.sources), ctx.options);
   },
   demo,
 });
@@ -396,14 +483,35 @@ export const status = defineWidget({
 export default definePlugin({
   id: 'llm',
   name: { en: 'Local LLMs', es: 'LLM locales', de: 'Lokale LLMs', 'zh-Hant': '本機 LLM', 'zh-Hans': '本地大模型' },
-  version: '0.2.2',
+  version: '0.3.0',
   languages: ['en', 'es', 'de', 'zh-Hant', 'zh-Hans'],
   sdk: '^0.2.0',
   permissions: { network: ['user'] },
-  description: { en: 'Tokens per second, loaded models and request queues of your local LLM servers.', es: 'Tokens por segundo, modelos cargados y colas de peticiones de tus servidores de LLM locales.', de: 'Tokens pro Sekunde, geladene Modelle und Anfrage-Warteschlangen deiner lokalen LLM-Server.', 'zh-Hant': '你本機 LLM 伺服器的每秒 token 數、已載入模型與請求佇列。', 'zh-Hans': '你本地大模型服务器的每秒 token 数、已加载模型和请求队列。' },
+  description: { en: 'Tokens per second (like FPS: the slow end and the time to first token too), loaded models and request queues of your local LLM servers.', es: 'Tokens por segundo (como los FPS: también el extremo lento y el tiempo hasta el primer token), modelos cargados y colas de peticiones de tus servidores de LLM locales.', de: 'Tokens pro Sekunde (wie FPS: auch das langsame Ende und die Zeit bis zum ersten Token), geladene Modelle und Anfrage-Warteschlangen deiner lokalen LLM-Server.', 'zh-Hant': '你本機 LLM 伺服器的每秒 token 數（如同 FPS：也含最慢的部分與首個 token 時間）、已載入模型與請求佇列。', 'zh-Hans': '你本地大模型服务器的每秒 token 数（如同 FPS：也含最慢的部分和首 token 时间）、已加载模型和请求队列。' },
   author: 'Kiosko',
   license: 'MIT',
   icon: 'cpu',
-  widgets: [throughput, models, queue, status],
+  widgets: [speed, throughput, models, queue, status],
   sources: [servers],
+  templates: [
+    {
+      id: 'local-ai',
+      name: { en: 'Local AI', es: 'IA local', de: 'Lokale KI', 'zh-Hant': '本機 AI', 'zh-Hans': '本地 AI' },
+      icon: 'gauge',
+      wide: [
+        { x: 0, y: 0, w: 1 / 2, h: 1, widgets: ['speed'] },
+        { x: 1 / 2, y: 0, w: 1 / 3, h: 1, widgets: ['models'] },
+        { x: 5 / 6, y: 0, w: 1 / 6, h: 1, widgets: ['queue'] },
+      ],
+      square: [
+        { x: 0, y: 0, w: 1, h: 1 / 2, widgets: ['speed'] },
+        { x: 0, y: 1 / 2, w: 1, h: 1 / 2, widgets: ['models'] },
+      ],
+      tall: [
+        { x: 0, y: 0, w: 1, h: 1 / 2, widgets: ['speed'] },
+        { x: 0, y: 1 / 2, w: 1, h: 1 / 4, widgets: ['models'] },
+        { x: 0, y: 3 / 4, w: 1, h: 1 / 4, widgets: ['queue'] },
+      ],
+    },
+  ],
 });

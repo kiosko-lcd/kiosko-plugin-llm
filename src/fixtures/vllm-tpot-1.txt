@@ -1,0 +1,60 @@
+# HELP vllm:num_requests_running Number of requests in model execution batches.
+# TYPE vllm:num_requests_running gauge
+vllm:num_requests_running{engine="0",model_name="Qwen/Qwen3-30B-A3B"} 2.0
+# HELP vllm:generation_tokens_total Number of generation tokens processed.
+# TYPE vllm:generation_tokens_total counter
+vllm:generation_tokens_total{engine="0",model_name="Qwen/Qwen3-30B-A3B"} 1000.0
+# HELP vllm:request_time_per_output_token_seconds Histogram of time_per_output_token_seconds per request.
+# TYPE vllm:request_time_per_output_token_seconds histogram
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.01",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.025",model_name="Qwen/Qwen3-30B-A3B"} 10.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.05",model_name="Qwen/Qwen3-30B-A3B"} 40.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.075",model_name="Qwen/Qwen3-30B-A3B"} 48.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.1",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.15",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.2",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.3",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.4",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.5",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.75",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="1.0",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="2.5",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="+Inf",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_count{engine="0",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:request_time_per_output_token_seconds_sum{engine="0",model_name="Qwen/Qwen3-30B-A3B"} 1.0
+# HELP vllm:inter_token_latency_seconds Histogram of inter-token latency in seconds.
+# TYPE vllm:inter_token_latency_seconds histogram
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.01",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.025",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.05",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.075",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.1",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.15",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.2",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.3",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.4",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.5",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.75",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="1.0",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="2.5",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="+Inf",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_count{engine="0",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:inter_token_latency_seconds_sum{engine="0",model_name="Qwen/Qwen3-30B-A3B"} 0
+# HELP vllm:time_to_first_token_seconds Histogram of time to first token in seconds.
+# TYPE vllm:time_to_first_token_seconds histogram
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.01",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.025",model_name="Qwen/Qwen3-30B-A3B"} 0.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.05",model_name="Qwen/Qwen3-30B-A3B"} 5.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.075",model_name="Qwen/Qwen3-30B-A3B"} 15.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.1",model_name="Qwen/Qwen3-30B-A3B"} 35.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.15",model_name="Qwen/Qwen3-30B-A3B"} 45.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.2",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.3",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.4",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.5",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.75",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="1.0",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="2.5",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="+Inf",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:time_to_first_token_seconds_count{engine="0",model_name="Qwen/Qwen3-30B-A3B"} 50.0
+vllm:time_to_first_token_seconds_sum{engine="0",model_name="Qwen/Qwen3-30B-A3B"} 1.0

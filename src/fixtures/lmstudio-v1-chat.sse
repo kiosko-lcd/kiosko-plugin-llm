@@ -1,0 +1,15 @@
+event: chat.start
+data: {"type":"chat.start","model_instance_id":"google/gemma-4-26b-a4b"}
+
+event: prompt_processing.start
+data: {"type":"prompt_processing.start"}
+
+event: message.delta
+data: {"type":"message.delta","content":"Hello"}
+
+event: message.delta
+data: {"type":"message.delta","content":"!"}
+
+event: chat.end
+data: {"type":"chat.end","result":{"model_instance_id":"google/gemma-4-26b-a4b","output":[{"type":"message","content":"Hello!"}],"stats":{"input_tokens":646,"total_output_tokens":586,"reasoning_output_tokens":0,"tokens_per_second":29.753900615398926,"time_to_first_token_seconds":1.088,"model_load_time_seconds":2.656},"response_id":"resp_1"}}
+

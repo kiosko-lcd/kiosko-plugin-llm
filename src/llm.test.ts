@@ -175,7 +175,9 @@ test('servers filter: by name or address, with exclusions; per-widget lists', ()
   assert.deepEqual(serversOf(d, ['vllm', 'llama*']).map((s) => s.name), ['vllm', 'llama.cpp']);
   assert.deepEqual(serversOf(d, ['!ollama', '!lm-*']).map((s) => s.name), ['vllm', 'llama.cpp']);
   assert.deepEqual(serversOf(d, '*192.168.1.41*').map((s) => s.name), ['vllm'], 'by address');
-  assert.deepEqual(rateServers(d, { servers: [], onlyWithRate: true }).map((s) => s.name), ['vllm', 'llama.cpp', 'lm-studio'], 'Ollama gives no rate; down servers stay');
+  assert.deepEqual(rateServers(d, { servers: [], onlyWithRate: true }).map((s) => s.name), ['ollama', 'vllm', 'llama.cpp', 'lm-studio'], 'the demo Ollama is measured through the proxy; down servers stay');
+  const bare = { ...d, servers: d.servers.map((s) => (s.kind === 'ollama' ? { ...s, genTps: undefined, history: [] } : s)) } as typeof d;
+  assert.deepEqual(rateServers(bare, { servers: [], onlyWithRate: true }).map((s) => s.name), ['vllm', 'llama.cpp', 'lm-studio'], 'Ollama with no proxy gives no rate');
   assert.deepEqual(queueServers(d, { servers: ['!lm-studio'], onlyWithQueue: true }).map((s) => s.name), ['vllm', 'llama.cpp']);
   assert.deepEqual(modelRows(d, ['ollama']).map((r) => r.m.name), ['qwen2.5-coder:32b', 'nomic-embed-text:latest']);
 });
@@ -194,11 +196,11 @@ test('plugin: every widget renders its demo and with no servers; idle and urgent
   const { THEMES } = await import('@kiosko/sdk');
   const kit = await import('@loksly/lcd-canvas-kit');
   assert.equal(plugin.id, 'llm');
-  assert.deepEqual(plugin.widgets!.map((w) => w.id), ['throughput', 'models', 'queue', 'status']);
+  assert.deepEqual(plugin.widgets!.map((w) => w.id), ['speed', 'throughput', 'models', 'queue', 'status']);
   const src = plugin.sources![0]!;
   assert.equal(src.intervalMs, 5000);
   const ep = (src.options as { props: { endpoints: { default: unknown; item: { props: Record<string, { secret?: boolean }> } } } }).props.endpoints;
-  assert.deepEqual(ep.default, [{ name: 'ollama', kind: 'ollama', url: 'http://127.0.0.1:11434', token: '' }]);
+  assert.deepEqual(ep.default, [{ name: 'ollama', kind: 'ollama', url: 'http://127.0.0.1:11434', token: '', proxyPort: 0, proxyHost: '127.0.0.1' }], 'the measuring proxy is off by default, and local when on');
   assert.equal(ep.item.props.token!.secret, true);
   const now = Date.parse('2026-11-09T10:00:00Z');
   const theme = THEMES[0]!;
@@ -252,7 +254,7 @@ test('lists: empty, rows and "+N more"', async () => {
   assert.ok(paint('queue', {}, { 'llm/servers': { at: now, servers: [1, 2, 3, 4].map((i) => ({ ...demoData(now).servers[1]!, name: `v${i}` })) } }, 80).includes('+2 more'), 'queue no longer cuts silently');
   assert.ok(paint('models', { servers: ['nope'] }, demoSrc).includes('No server matches the filter'));
   const st = (id: string, sources: Record<string, unknown>, options: object = {}) => byId(id).empty!({ options: { ...defaults(id), ...options }, data: undefined, sources, now, working: true } as never);
-  for (const id of ['throughput', 'models', 'queue', 'status']) {
+  for (const id of ['speed', 'throughput', 'models', 'queue', 'status']) {
     assert.equal(st(id, demoSrc), false, id);
     assert.equal(st(id, { 'llm/servers': { at: now, servers: [] } }), true, id);
     assert.equal(st(id, {}), false, `${id}: unknown until the first read`);

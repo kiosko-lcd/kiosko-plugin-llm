@@ -5,7 +5,8 @@
  * between two polls, so the reader keeps a small state per endpoint.
  */
 import type { Formatters } from '@kiosko/sdk';
-import { bucketDelta, buckets, counterRate, label, parseProm, quantile, sum, type Metrics } from './prom.ts';
+import { HistWindow, buckets, counterRate, label, parseProm, percentile, sum, type Metrics } from './prom.ts';
+import { proxyAt, type ProxySnapshot, type ProxySpeed } from './proxy.ts';
 
 export const KINDS = ['ollama', 'llamacpp', 'vllm', 'openai', 'tgi'] as const;
 export type Kind = (typeof KINDS)[number];
@@ -15,6 +16,33 @@ export interface Endpoint {
   kind: Kind;
   url: string;
   token?: string;
+  /** Measuring proxy in front of this server: the port it listens on, 0 = off. */
+  proxyPort?: number;
+  /** Where the proxy listens: 127.0.0.1 unless the user says otherwise. */
+  proxyHost?: string;
+}
+
+/** The speed of one model, where the server (or the proxy) tells them apart. */
+export interface ModelSpeed {
+  model: string;
+  genTps?: number;
+  promptTps?: number;
+  decodeTps?: number;
+  lowTps?: number;
+  ttftP50?: number;
+  ttftP90?: number;
+  history: [number, number][];
+}
+
+/** The measuring proxy, as the widgets see it. */
+export interface ProxyStatus {
+  listen: string;
+  listening: boolean;
+  error?: string;
+  active: number;
+  requests: number;
+  /** Some recent figure is the proxy's own count (one token per chunk). */
+  estimated: boolean;
 }
 
 export interface LoadedModel {
@@ -55,9 +83,25 @@ export interface ServerStatus {
   promptTps?: number;
   /** KV cache in use, 0‥1. */
   kvUsage?: number;
-  /** Time to first token over the poll window, seconds. */
+  /** Time to first token over the last minutes, seconds. */
   ttftP50?: number;
+  ttftP90?: number;
   ttftP95?: number;
+  /** Time per output token of one answer over the last minutes, seconds (vLLM, TGI). */
+  tpotP50?: number;
+  tpotP90?: number;
+  /** Decode speed of one answer, typical: what one user sees, batching aside. */
+  decodeTps?: number;
+  /**
+   * The "1 % low" of generation: the slow end of the recent answers' decode
+   * speed (1 / p90 of the time per output token; p10 of the answers' speed).
+   */
+  lowTps?: number;
+  /** Where the speed figures came from. */
+  measured?: 'server' | 'proxy';
+  proxy?: ProxyStatus;
+  /** Per model, where they can be told apart (the proxy). */
+  speeds?: ModelSpeed[];
   promptTokensTotal?: number;
   genTokensTotal?: number;
   requestsTotal?: number;
@@ -70,13 +114,32 @@ export interface LlmData {
   servers: ServerStatus[];
 }
 
-export const DEFAULT_ENDPOINTS: (Endpoint & { token: string })[] = [{ name: 'ollama', kind: 'ollama', url: 'http://127.0.0.1:11434', token: '' }];
+export const DEFAULT_ENDPOINTS: (Endpoint & { token: string; proxyPort: number; proxyHost: string })[] = [{ name: 'ollama', kind: 'ollama', url: 'http://127.0.0.1:11434', token: '', proxyPort: 0, proxyHost: '127.0.0.1' }];
 /** How much history is kept per server. */
 export const HISTORY_MS = 30 * 60_000;
+/** The answers the TTFT and the low describe: the last few minutes'. */
+export const RECENT_MS = 5 * 60_000;
+/** Fewer tokens than this in a poll say little about the decode speed. */
+const MIN_DECODE_TOKENS = 8;
 
-interface Prev { at: number; prompt?: number; gen?: number; ttft?: [number, number][] }
-export interface PollState { prev: Map<string, Prev>; history: Map<string, [number, number][]> }
-export const createState = (): PollState => ({ prev: new Map(), history: new Map() });
+interface Prev { at: number; prompt?: number; gen?: number; decodeSeconds?: number }
+export interface PollState {
+  prev: Map<string, Prev>;
+  history: Map<string, [number, number][]>;
+  ttft: Map<string, HistWindow>;
+  tpot: Map<string, HistWindow>;
+  /** llama.cpp: decode speed of each poll that decoded something, [time, tok/s]. */
+  decode: Map<string, [number, number][]>;
+}
+export const createState = (): PollState => ({ prev: new Map(), history: new Map(), ttft: new Map(), tpot: new Map(), decode: new Map() });
+
+/** What the reader needs of a proxy: its log and whether it listens. */
+export interface ProxyView {
+  listen: string;
+  listening: boolean;
+  error?: string | undefined;
+  log: { snapshot(now: number, windowMs: number): Omit<ProxySnapshot, 'listen' | 'listening' | 'error'> };
+}
 
 export type Fetch = (url: string, init: { headers: Record<string, string>; signal: AbortSignal }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
@@ -87,6 +150,8 @@ export interface ReadOptions {
   /** How long one server may take, all its requests together. Default 2 s. */
   timeoutMs?: number;
   signal?: AbortSignal;
+  /** The proxy of an endpoint (default: the one the source started). */
+  proxyOf?: (ep: Endpoint) => ProxyView | undefined;
 }
 
 class HttpError extends Error {
@@ -110,7 +175,10 @@ interface Reading extends Partial<Omit<ServerStatus, 'name' | 'kind' | 'url' | '
   /** Counters for rates. */
   promptCounter?: number;
   genCounter?: number;
+  /** Seconds spent decoding, a counter (llama.cpp). */
+  decodeSecondsCounter?: number;
   ttftBuckets?: [number, number][];
+  tpotBuckets?: [number, number][];
   /** Gauges to fall back on with no previous reading. */
   genGauge?: number;
   promptGauge?: number;
@@ -171,6 +239,8 @@ export async function readLlamaCpp(get: Get): Promise<Reading> {
     const p = sum(ms, 'llamacpp:prompt_tokens_total'), g = sum(ms, 'llamacpp:tokens_predicted_total');
     if (p !== undefined) { r.promptCounter = p; r.promptTokensTotal = p; }
     if (g !== undefined) { r.genCounter = g; r.genTokensTotal = g; }
+    const ds = sum(ms, 'llamacpp:tokens_predicted_seconds_total');
+    if (ds !== undefined) r.decodeSecondsCounter = ds;
     // Throughput gauges are averages of the last requests: only meaningful while something runs.
     const busy = (r.running ?? 0) > 0;
     r.genGauge = busy ? sum(ms, 'llamacpp:predicted_tokens_seconds') ?? 0 : 0;
@@ -193,9 +263,21 @@ export function vllmFromMetrics(ms: Metrics): Reading {
   if (req !== undefined) r.requestsTotal = req;
   const tb = buckets(ms, 'vllm:time_to_first_token_seconds');
   if (tb.length) r.ttftBuckets = tb;
+  // Per answer first; older vLLMs name it time_per_output_token; inter-token latency (per token) last.
+  const pb = firstBuckets(ms, 'vllm:request_time_per_output_token_seconds', 'vllm:time_per_output_token_seconds', 'vllm:inter_token_latency_seconds');
+  if (pb.length) r.tpotBuckets = pb;
   const model = label(ms, 'vllm:', 'model_name');
   if (model) r.models = [{ name: model }];
   return r;
+}
+
+/** The buckets of the first of these histogram families the server exposes. */
+function firstBuckets(ms: Metrics, ...families: string[]): [number, number][] {
+  for (const f of families) {
+    const b = buckets(ms, f);
+    if (b.length) return b;
+  }
+  return [];
 }
 
 export async function readVllm(get: Get): Promise<Reading> {
@@ -220,13 +302,34 @@ export async function readTgi(get: Get): Promise<Reading> {
     if (g !== undefined) { r.genCounter = g; r.genTokensTotal = g; }
     if (p !== undefined) { r.promptCounter = p; r.promptTokensTotal = p; }
     if (req !== undefined) r.requestsTotal = req;
+    const pb = buckets(ms, 'tgi_request_mean_time_per_token_duration');
+    if (pb.length) r.tpotBuckets = pb;
   }
   return r;
 }
 
+interface LmsV1Models { models?: { type?: string; key?: string; loaded_instances?: { id?: string; config?: { context_length?: number } }[] }[] }
+interface LmsV0Models { data?: { id: string; type?: string; state?: string; max_context_length?: number }[] }
+
+/**
+ * Any OpenAI-compatible server: its model list. LM Studio also says which
+ * models are loaded (REST API v1 `/api/v1/models`, or v0 `/api/v0/models`):
+ * then those are the models shown.
+ */
 export async function readOpenAi(get: Get): Promise<Reading> {
   const d = json<{ data?: { id: string }[] }>(await get('/v1/models'));
-  return { models: (d?.data ?? []).map((m) => ({ name: m.id })) };
+  const listed = (d?.data ?? []).map((m) => ({ name: m.id }));
+  const v1 = json<LmsV1Models>(await maybe(get, '/api/v1/models'));
+  if (Array.isArray(v1?.models) && v1.models.some((m) => Array.isArray(m.loaded_instances))) {
+    const loaded = v1.models.flatMap((m) => (m.loaded_instances ?? []).map((i) => ({ name: i.id || m.key || '?', ...(i.config?.context_length ? { contextLength: i.config.context_length } : {}) })));
+    return { models: loaded, installed: v1.models.length };
+  }
+  const v0 = json<LmsV0Models>(await maybe(get, '/api/v0/models'));
+  if (Array.isArray(v0?.data) && v0.data.some((m) => typeof m.state === 'string')) {
+    const loaded = v0.data.filter((m) => m.state === 'loaded').map((m) => ({ name: m.id, ...(m.max_context_length ? { contextLength: m.max_context_length } : {}) }));
+    return { models: loaded, installed: v0.data.length };
+  }
+  return { models: listed };
 }
 
 const READERS: Record<Kind, (get: Get) => Promise<Reading>> = { ollama: readOllama, llamacpp: readLlamaCpp, vllm: readVllm, tgi: readTgi, openai: readOpenAi };
@@ -256,40 +359,103 @@ export async function readServer(ep: Endpoint, o: Required<Omit<ReadOptions, 'si
   const key = keyOf(ep);
   const history = o.state.history.get(key) ?? [];
   const id = { name: ep.name || ep.kind, kind: ep.kind, url: base };
+  const prev = o.state.prev.get(key);
+  const dt = prev ? o.now - prev.at : 0;
+  const px = proxyFigures(ep, o, key, dt);
   let r: Reading;
   try {
     r = await READERS[ep.kind](get);
   } catch (e) {
     o.state.prev.delete(key);
-    return { ...id, reachable: false, error: errorText(e), models: [], history: history.filter(([t]) => t > o.now - HISTORY_MS) };
+    return { ...id, reachable: false, error: errorText(e), models: [], history: history.filter(([t]) => t > o.now - HISTORY_MS), ...(px ? { proxy: px.status } : {}) };
   }
-  const prev = o.state.prev.get(key);
-  const dt = prev ? o.now - prev.at : 0;
-  const genTps = counterRate(prev?.gen, r.genCounter, dt) ?? r.genGauge;
-  const promptTps = counterRate(prev?.prompt, r.promptCounter, dt) ?? r.promptGauge;
-  const window = r.ttftBuckets ? bucketDelta(prev?.ttft, r.ttftBuckets) : [];
-  const p50 = quantile(0.5, window), p95 = quantile(0.95, window);
-  o.state.prev.set(key, { at: o.now, ...(r.promptCounter !== undefined ? { prompt: r.promptCounter } : {}), ...(r.genCounter !== undefined ? { gen: r.genCounter } : {}), ...(r.ttftBuckets ? { ttft: r.ttftBuckets } : {}) });
+  const own = serverFigures(r, prev, dt, o, key);
+  o.state.prev.set(key, { at: o.now, ...(r.promptCounter !== undefined ? { prompt: r.promptCounter } : {}), ...(r.genCounter !== undefined ? { gen: r.genCounter } : {}), ...(r.decodeSecondsCounter !== undefined ? { decodeSeconds: r.decodeSecondsCounter } : {}) });
+  // The server's own figures first; the proxy's fill what it doesn't say.
+  const speed: Partial<ServerStatus> = { ...(px?.speed ?? {}), ...own };
+  const measured = own.genTps !== undefined ? 'server' : px?.speed.genTps !== undefined ? 'proxy' : undefined;
+  const genTps = speed.genTps;
   const next = genTps !== undefined ? [...history, [o.now, genTps] as [number, number]] : history;
   const kept = next.filter(([t]) => t > o.now - HISTORY_MS);
   o.state.history.set(key, kept);
-  const { promptCounter: _p, genCounter: _g, ttftBuckets: _t, genGauge: _gg, promptGauge: _pg, ...rest } = r;
+  const { promptCounter: _p, genCounter: _g, decodeSecondsCounter: _d, ttftBuckets: _t, tpotBuckets: _tp, genGauge: _gg, promptGauge: _pg, ...rest } = r;
   return {
     ...id, reachable: true, ...rest,
-    ...(genTps !== undefined ? { genTps } : {}),
-    ...(promptTps !== undefined ? { promptTps } : {}),
-    ...(p50 !== undefined ? { ttftP50: p50 } : {}),
-    ...(p95 !== undefined ? { ttftP95: p95 } : {}),
+    ...speed,
+    ...(measured ? { measured } : {}),
+    ...(px ? { proxy: px.status } : {}),
+    ...(px?.speeds.length ? { speeds: px.speeds } : {}),
     history: kept,
   };
 }
 
+const defined = <T extends object>(o: T): Partial<T> => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
+
+/** Rates from counters, quantiles from the histograms' last minutes, the low. */
+function serverFigures(r: Reading, prev: Prev | undefined, dt: number, o: { now: number; state: PollState }, key: string): Partial<ServerStatus> {
+  const genTps = counterRate(prev?.gen, r.genCounter, dt) ?? r.genGauge;
+  const promptTps = counterRate(prev?.prompt, r.promptCounter, dt) ?? r.promptGauge;
+  const out: Partial<ServerStatus> = defined({ genTps, promptTps });
+  const win = (m: Map<string, HistWindow>, bs: [number, number][] | undefined) => {
+    if (!bs) return undefined;
+    let w = m.get(key);
+    if (!w) m.set(key, (w = new HistWindow(RECENT_MS)));
+    w.push(o.now, bs);
+    return w.count() > 0 ? w : undefined;
+  };
+  const tt = win(o.state.ttft, r.ttftBuckets);
+  if (tt) Object.assign(out, defined({ ttftP50: tt.quantile(0.5), ttftP90: tt.quantile(0.9), ttftP95: tt.quantile(0.95) }));
+  const tp = win(o.state.tpot, r.tpotBuckets);
+  if (tp) {
+    const p50 = tp.quantile(0.5), p90 = tp.quantile(0.9);
+    Object.assign(out, defined({ tpotP50: p50, tpotP90: p90, decodeTps: p50 ? 1 / p50 : undefined, lowTps: p90 ? 1 / p90 : undefined }));
+  }
+  // llama.cpp: tokens over the seconds spent decoding them, poll by poll; the low is the slow tenth of those.
+  if (r.decodeSecondsCounter !== undefined && r.genCounter !== undefined && prev?.decodeSeconds !== undefined && prev.gen !== undefined) {
+    const dTok = r.genCounter - prev.gen, dSec = r.decodeSecondsCounter - prev.decodeSeconds;
+    const samples = (o.state.decode.get(key) ?? []).filter(([t]) => t > o.now - RECENT_MS);
+    if (dTok >= MIN_DECODE_TOKENS && dSec > 0) samples.push([o.now, dTok / dSec]);
+    o.state.decode.set(key, samples);
+    const v = samples.map(([, x]) => x);
+    Object.assign(out, defined({ decodeTps: percentile(0.5, v), lowTps: percentile(0.1, v) }));
+  }
+  return out;
+}
+
+/** The measuring proxy's figures for this endpoint, if it has one. */
+function proxyFigures(ep: Endpoint, o: { now: number; state: PollState; proxyOf: (ep: Endpoint) => ProxyView | undefined }, key: string, dt: number): { status: ProxyStatus; speed: Partial<ServerStatus>; speeds: ModelSpeed[] } | undefined {
+  if (!ep.proxyPort) return undefined;
+  const p = o.proxyOf(ep);
+  if (!p) return { status: { listen: proxyListen(ep), listening: false, error: 'not running', active: 0, requests: 0, estimated: false }, speed: {}, speeds: [] };
+  // Rates over the time since the last read (the poll interval), within reason.
+  const snap = p.log.snapshot(o.now, Math.min(60_000, Math.max(2_000, dt || 5_000)));
+  const pick = (s: ProxySpeed): Partial<ServerStatus> => defined({ genTps: s.genTps, promptTps: s.promptTps, decodeTps: s.decodeTps, lowTps: s.lowTps, ttftP50: s.ttftP50, ttftP90: s.ttftP90 });
+  const speeds = snap.models.map((m): ModelSpeed => {
+    const hk = `${key}\u0000${m.model}`;
+    const h = [...(o.state.history.get(hk) ?? []), [o.now, m.genTps] as [number, number]].filter(([t]) => t > o.now - HISTORY_MS);
+    o.state.history.set(hk, h);
+    return { model: m.model, ...pick(m), history: h };
+  });
+  return {
+    status: { listen: p.listen, listening: p.listening, ...(p.error ? { error: p.error } : {}), active: snap.active, requests: snap.requests, estimated: snap.estimated },
+    speed: pick(snap),
+    speeds,
+  };
+}
+
+/** host:port the proxy of an endpoint listens on. */
+export const proxyListen = (ep: Endpoint) => {
+  const h = ep.proxyHost?.trim() || '127.0.0.1';
+  return `${h.includes(':') ? `[${h}]` : h}:${ep.proxyPort}`;
+};
+
 const sharedState = createState();
+const defaultProxyOf = (ep: Endpoint): ProxyView | undefined => (ep.proxyPort ? proxyAt(ep.proxyHost?.trim() || '127.0.0.1', ep.proxyPort) : undefined);
 
 /** Every endpoint in parallel; a dead one only costs its own timeout. */
 export async function readServers(endpoints: Endpoint[], o: ReadOptions = {}): Promise<LlmData> {
   const now = o.now ?? Date.now();
-  const opts = { fetch: o.fetch ?? (globalThis.fetch as unknown as Fetch), now, state: o.state ?? sharedState, timeoutMs: o.timeoutMs ?? 2000, ...(o.signal ? { signal: o.signal } : {}) };
+  const opts = { fetch: o.fetch ?? (globalThis.fetch as unknown as Fetch), now, state: o.state ?? sharedState, timeoutMs: o.timeoutMs ?? 2000, proxyOf: o.proxyOf ?? defaultProxyOf, ...(o.signal ? { signal: o.signal } : {}) };
   const list = endpoints.filter((e) => e.url?.trim());
   return { at: now, servers: await Promise.all(list.map((e) => readServer(e, opts))) };
 }
@@ -371,24 +537,38 @@ export function demoData(now: number, locale = 'en'): LlmData {
   const vllmHist = wave(120, 70, 18, 3);
   vllmHist[vllmHist.length - 1]![1] = 85;
   const llamaHist = wave(120, 0, 0, 0).map(([t], i): [number, number] => [t, i > 60 && i < 95 ? 38 + 6 * Math.sin(i / 3) : 0]);
+  // Ollama through the measuring proxy: answers with pauses between them, one slow stretch while a second model loaded.
+  const ollamaHist = wave(120, 0, 0, 0).map(([t], i): [number, number] => {
+    const on = i % 17 < 12 && i > 4;
+    if (!on) return [t, 0];
+    const slow = i > 70 && i < 76;
+    return [t, slow ? 7 + (i % 3) : 41 + 5 * Math.sin(i / 2.3) + 2 * Math.sin(i * 1.7)];
+  });
+  ollamaHist[ollamaHist.length - 1]![1] = 43.6;
+  const first = models.ollama[0]!.name;
   return {
     at: now,
     servers: [
       {
-        name: 'ollama', kind: 'ollama', url: 'http://192.168.1.40:11434', reachable: true, version: '0.12.6', installed: 9,
+        name: 'ollama', kind: 'ollama', url: 'http://192.168.1.40:11434', reachable: true, version: '0.40.17', installed: 9,
         models: models.ollama,
-        history: [],
+        genTps: 43.6, promptTps: 980, decodeTps: 42.1, lowTps: 31.4, ttftP50: 0.34, ttftP90: 0.82, measured: 'proxy',
+        proxy: { listen: '127.0.0.1:11435', listening: true, active: 1, requests: 214, estimated: false },
+        speeds: [{ model: first, genTps: 43.6, promptTps: 980, decodeTps: 42.1, lowTps: 31.4, ttftP50: 0.34, ttftP90: 0.82, history: ollamaHist }],
+        history: ollamaHist,
       },
       {
         name: 'vllm', kind: 'vllm', url: 'http://192.168.1.41:8000', reachable: true, version: '0.11.0',
         models: models.vllm,
-        running: 3, waiting: 0, genTps: 85, promptTps: 412, kvUsage: 0.37, ttftP50: 0.18, ttftP95: 0.62,
+        running: 3, waiting: 0, genTps: 85, promptTps: 412, kvUsage: 0.37, ttftP50: 0.18, ttftP90: 0.48, ttftP95: 0.62,
+        tpotP50: 0.032, tpotP90: 0.045, decodeTps: 31.3, lowTps: 22.2, measured: 'server',
         promptTokensTotal: 4_812_330, genTokensTotal: 1_204_871, requestsTotal: 9_312, history: vllmHist,
       },
       {
         name: 'llama.cpp', kind: 'llamacpp', url: 'http://192.168.1.42:8080', reachable: true, version: 'b6710',
         models: models.llamacpp,
         slots: [{ id: 0, busy: false, nCtx: 8192 }, { id: 1, busy: false, nCtx: 8192 }], running: 0, waiting: 0, genTps: 0, promptTps: 0, kvUsage: 0.08,
+        decodeTps: 39.2, lowTps: 33.5, measured: 'server',
         history: llamaHist,
       },
       { name: 'lm-studio', kind: 'openai', url: 'http://192.168.1.43:1234', reachable: false, error: 'ECONNREFUSED', models: [], history: [] },
