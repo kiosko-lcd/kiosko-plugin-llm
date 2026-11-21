@@ -195,7 +195,7 @@ test('LM Studio: the loaded models from its REST API; other OpenAI servers keep 
   assert.deepEqual((await readServers([{ name: 'o', kind: 'openai', url: 'http://o' }], { fetch: g, now: 0, state: createState() })).servers[0]!.models, [{ name: 'a' }]);
 });
 
-test('Ollama through the proxy: tokens/s, TTFT and the low per model; the proxy says when it is off', async () => {
+test('Ollama through the proxy: tokens/s, TTFT and the low per model; the proxy says when it is off', async (t) => {
   const log = new SpeedLog();
   for (let i = 0; i < 10; i++) {
     const m = log.begin('application/x-ndjson', 10_000 + i * 1000);
@@ -300,9 +300,11 @@ async function request(port: number, path: string, body?: string, opts: { abortA
   });
 }
 
-test('proxy: passes requests and answers through unchanged, streaming included, and measures them', async () => {
+test('proxy: passes requests and answers through unchanged, streaming included, and measures them', async (t) => {
   const fake = await fakeServer();
+  t.after(() => fake.close().catch(() => undefined));
   const p = startProxy({ upstream: fake.url, host: '127.0.0.1', port: 0 });
+  t.after(() => p.close().catch(() => undefined));
   await p.ready;
   assert.equal(p.listening, true);
   const port = p.port!;
@@ -328,13 +330,13 @@ test('proxy: passes requests and answers through unchanged, streaming included, 
   // Nothing of the conversation is kept: the log holds numbers and model names only.
   const kept = JSON.stringify(snap) + JSON.stringify((p.log as unknown as { records: unknown }).records);
   for (const secret of ['秘密', '你', '世', 'Hello', 'client-key']) assert.ok(!kept.includes(secret), secret);
-  await p.close();
-  await fake.close();
 });
 
-test('proxy: a client that leaves mid-answer stops the upstream too; a dead upstream is a 502', async () => {
+test('proxy: a client that leaves mid-answer stops the upstream too; a dead upstream is a 502', async (t) => {
   const fake = await fakeServer();
+  t.after(() => fake.close().catch(() => undefined));
   const p = startProxy({ upstream: fake.url, host: '127.0.0.1', port: 0 });
+  t.after(() => p.close().catch(() => undefined));
   await p.ready;
   await request(p.port!, '/api/generate', '{"model":"slow"}', { abortAfter: 200 });
   for (let i = 0; i < 50 && fake.closedEarly === 0; i++) await sleep(10);
@@ -351,15 +353,16 @@ test('proxy: a client that leaves mid-answer stops the upstream too; a dead upst
   const dead = await request(p.port!, '/api/chat', '{}');
   assert.equal(dead.status, 502);
   assert.match(dead.body, /did not answer/);
-  await p.close();
 });
 
-test('proxy: local by default, never pointed at itself, one per port; the source starts and stops it', async () => {
+test('proxy: local by default, never pointed at itself, one per port; the source starts and stops it', async (t) => {
   const fake = await fakeServer();
+  t.after(() => fake.close().catch(() => undefined));
   assert.equal(pointsAtItself('http://127.0.0.1:11435', '127.0.0.1', 11435), true);
   assert.equal(pointsAtItself('http://localhost:11435', '0.0.0.0', 11435), true);
   assert.equal(pointsAtItself('http://127.0.0.1:11434', '127.0.0.1', 11435), false);
   const loop = startProxy({ upstream: 'http://127.0.0.1:19999', host: '127.0.0.1', port: 19999 });
+  t.after(() => loop.close().catch(() => undefined));
   await loop.ready;
   assert.equal(loop.listening, false);
   assert.equal(loop.error, 'points at itself');
@@ -379,6 +382,7 @@ test('proxy: local by default, never pointed at itself, one per port; the source
   assert.equal(proxyAt('127.0.0.1', port), p, 'still held by the source');
   // The port is taken: the error says so.
   const clash = startProxy({ upstream: fake.url, host: '127.0.0.1', port, retryMs: [] });
+  t.after(() => clash.close().catch(() => undefined));
   await clash.ready;
   assert.equal(clash.error, `port ${port} in use`);
   stop();
@@ -391,7 +395,6 @@ test('proxy: local by default, never pointed at itself, one per port; the source
   stop2();
   await sleep(50);
   await assert.rejects(request(port, '/api/tags'), 'closed');
-  await fake.close();
 });
 
 test('source: off by default, both proxy options flagged as network', () => {
