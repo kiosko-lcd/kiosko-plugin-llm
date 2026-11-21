@@ -1,7 +1,7 @@
 {
   "name": "kiosko-plugin-llm",
-  "version": "0.2.2",
-  "description": "Tokens per second, loaded models and request queues of your local LLM servers.",
+  "version": "0.3.0",
+  "description": "Tokens per second (like FPS: the slow end and the time to first token too), loaded models and request queues of your local LLM servers.",
   "type": "module",
   "license": "MIT",
   "author": "Loksly <info@kioskolcd.dev> (https://kioskolcd.dev)",
@@ -51,7 +51,7 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "test": "node --conditions=source --test \"src/**/*.test.ts\"",
+    "test": "node --conditions=source --test --test-timeout=60000 \"src/**/*.test.ts\"",
     "check": "tsc -p tsconfig.json",
     "prepublishOnly": "npm run build"
   },

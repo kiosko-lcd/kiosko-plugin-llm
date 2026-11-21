@@ -94,3 +94,47 @@ export function quantile(q: number, bs: [number, number][]): number | undefined 
   }
   return prevLe;
 }
+
+/**
+ * Snapshots of a histogram's cumulative buckets over the last `spanMs`, so
+ * quantiles describe the recent requests (a few minutes) rather than one
+ * poll (a few seconds, often none) or the server's whole life.
+ */
+export class HistWindow {
+  private snaps: { at: number; bs: [number, number][] }[] = [];
+  readonly spanMs: number;
+  constructor(spanMs = 5 * 60_000) {
+    this.spanMs = spanMs;
+  }
+
+  /** Adds a reading; a counter that went down (a restart) starts the window again. */
+  push(at: number, bs: [number, number][]): void {
+    const last = this.snaps.at(-1);
+    if (last && bs.some(([le, c]) => c < (new Map(last.bs).get(le) ?? 0))) this.snaps = [];
+    this.snaps.push({ at, bs });
+    // Keep the newest snapshot at least `spanMs` old as the window's start.
+    while (this.snaps.length > 2 && this.snaps[1]!.at <= at - this.spanMs) this.snaps.shift();
+  }
+
+  /** What the histogram gained over the window: [[le, count], …]; empty with fewer than two readings. */
+  delta(): [number, number][] {
+    if (this.snaps.length < 2) return [];
+    return bucketDelta(this.snaps[0]!.bs, this.snaps.at(-1)!.bs);
+  }
+
+  /** Observations in the window. */
+  count(): number {
+    return this.delta().at(-1)?.[1] ?? 0;
+  }
+
+  quantile(q: number): number | undefined {
+    return quantile(q, this.delta());
+  }
+}
+
+/** The q-quantile of plain samples (nearest rank); undefined with none. */
+export function percentile(q: number, values: number[]): number | undefined {
+  if (!values.length) return undefined;
+  const s = [...values].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.max(0, Math.ceil(q * s.length) - 1))];
+}

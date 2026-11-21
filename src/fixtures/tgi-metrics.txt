@@ -1,0 +1,15 @@
+# TYPE tgi_batch_current_size gauge
+tgi_batch_current_size 1
+# TYPE tgi_queue_size gauge
+tgi_queue_size 0
+# TYPE tgi_request_generated_tokens histogram
+tgi_request_generated_tokens_sum 5000
+tgi_request_generated_tokens_count 20
+# TYPE tgi_request_mean_time_per_token_duration histogram
+tgi_request_mean_time_per_token_duration_bucket{le="0.01"} 0
+tgi_request_mean_time_per_token_duration_bucket{le="0.02"} 5
+tgi_request_mean_time_per_token_duration_bucket{le="0.05"} 18
+tgi_request_mean_time_per_token_duration_bucket{le="0.1"} 20
+tgi_request_mean_time_per_token_duration_bucket{le="+Inf"} 20
+tgi_request_mean_time_per_token_duration_sum 0.5
+tgi_request_mean_time_per_token_duration_count 20
