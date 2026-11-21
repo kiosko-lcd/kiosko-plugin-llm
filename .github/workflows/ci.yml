@@ -36,4 +36,5 @@ jobs:
         working-directory: kiosko
       - run: npm run check
       - run: npm test
+        timeout-minutes: 10
       - run: npm run build
