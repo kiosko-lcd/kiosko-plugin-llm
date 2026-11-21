@@ -1,6 +1,6 @@
 {
   "name": "kiosko-plugin-llm",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Tokens per second, loaded models and request queues of your local LLM servers.",
   "type": "module",
   "license": "MIT",
