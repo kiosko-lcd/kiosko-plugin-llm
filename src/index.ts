@@ -396,7 +396,7 @@ export const status = defineWidget({
 export default definePlugin({
   id: 'llm',
   name: { en: 'Local LLMs', es: 'LLM locales', de: 'Lokale LLMs', 'zh-Hant': '本機 LLM', 'zh-Hans': '本地大模型' },
-  version: '0.2.1',
+  version: '0.2.2',
   languages: ['en', 'es', 'de', 'zh-Hant', 'zh-Hans'],
   sdk: '^0.2.0',
   permissions: { network: ['user'] },

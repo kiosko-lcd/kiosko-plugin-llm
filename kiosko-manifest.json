@@ -9,7 +9,7 @@
     "zh-Hant": "本機 LLM",
     "zh-Hans": "本地大模型"
   },
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": {
     "en": "Tokens per second, loaded models and request queues of your local LLM servers.",
     "es": "Tokens por segundo, modelos cargados y colas de peticiones de tus servidores de LLM locales.",
@@ -836,5 +836,9 @@
     }
   ],
   "interludes": [],
-  "templates": []
+  "templates": [],
+  "support": {
+    "issues": "https://github.com/kiosko-lcd/kiosko-plugin-llm/issues",
+    "docs": "https://github.com/kiosko-lcd/kiosko-plugin-llm#readme"
+  }
 }
