@@ -4,7 +4,7 @@
   "description": "Tokens per second, loaded models and request queues of your local LLM servers.",
   "type": "module",
   "license": "MIT",
-  "author": "Loksly",
+  "author": "Loksly <info@kioskolcd.dev> (https://kioskolcd.dev)",
   "keywords": [
     "kiosko",
     "kiosko-plugin",
